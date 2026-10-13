@@ -2,7 +2,7 @@
 // the hot side of the valve, the house radiators and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.0.1";
 
 const I18N = {
   pl: {
