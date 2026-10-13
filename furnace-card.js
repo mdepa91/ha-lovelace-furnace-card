@@ -2,7 +2,7 @@
 // the hot side of the valve, the house radiators and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.1.1";
 
 const I18N = {
   pl: {
@@ -255,9 +255,11 @@ function buildSvg(L) {
     <g id="valve-disc">
       <path id="valve-hot" fill="${OFF}" d="M-14.14,-14.14 A20,20 0 0 1 14.14,14.14 Z"/>
       <path id="valve-cold" fill="${OFF}" d="M14.14,14.14 A20,20 0 0 1 -14.14,-14.14 Z"/>
-      <path d="M-14.14,-14.14 L14.14,14.14" class="outline-stroke" stroke-width="2.5"/>
+      <path d="M-14.14,-14.14 L14.14,14.14" class="valve-ring" stroke-width="2.5"/>
     </g>
-    <circle r="20" fill="none" class="outline-stroke" stroke-width="2"/>
+    <!-- a halo in the card colour separates the ring from the pipes, so it stays visible on dark themes -->
+    <circle r="22.5" fill="none" stroke="var(--card-background-color, #fff)" stroke-width="3"/>
+    <circle r="20" fill="none" class="valve-ring" stroke-width="2.5"/>
     <circle r="3" class="dot"/>
   </g>
   <!-- slider: the pill with the position slides along the track (drag it or click the track) -->
@@ -448,6 +450,7 @@ const STYLE = `
   .rib { fill: var(--secondary-text-color, #5f6368); fill-opacity: .7; }
   .panel { fill: var(--card-background-color, #fff); }
   .outline-stroke { stroke: var(--secondary-text-color, #5f6368); }
+  .valve-ring { stroke: var(--primary-text-color, #202124); }
   .frame-fill { fill: var(--secondary-text-color, #5f6368); }
   #valve-disc { transform-box: fill-box; transform-origin: center; transition: transform .6s ease; }
   #valve-hot, #valve-cold { transition: fill .6s ease; }
