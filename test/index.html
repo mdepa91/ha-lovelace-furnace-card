@@ -17,13 +17,16 @@
 <div id="pl-heating" class="scenario"></div>
 <div id="pl-idle-dark" class="scenario dark"></div>
 <div id="en-minimal" class="scenario"></div>
+<div id="pl-wide" class="scenario" style="width:800px"></div>
+<div id="pl-wide-dark" class="scenario dark" style="width:800px"></div>
 <script>
   window.calls = [];
   const ENT = {
     boiler_supply: "sensor.piec_zasilanie", boiler_return: "sensor.piec_powrot", supply: "sensor.co_zasilanie",
     return: "sensor.co_powrot", hotwater: "sensor.cwu", hotwater_valve: "switch.zawor_cwu",
     heater: "switch.grzalka_cwu", room: "sensor.salon", outdoor: "sensor.zewnetrzna", valve: "number.zawor_4d",
-    thermostat: "climate.dom",
+    thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
+    weather: "weather.dom", grid: "sensor.siec_moc",
   };
   function hass(v, language = "pl") {
     const s = (id, state, attributes = {}) => [id, { entity_id: id, state: String(state), attributes }];
@@ -33,6 +36,9 @@
         s(ENT.boiler_supply, v.bs), s(ENT.boiler_return, v.br), s(ENT.supply, v.sup), s(ENT.return, v.ret),
         s(ENT.hotwater, v.hw), s(ENT.hotwater_valve, v.hwv), s(ENT.heater, v.heater), s(ENT.room, v.room),
         s(ENT.outdoor, v.out), s(ENT.valve, v.valve, { min: 0, max: 100, step: 1 }),
+        s(ENT.pv1, v.pv1 ?? 0, { unit_of_measurement: "W" }), s(ENT.pv2, v.pv2 ?? 0, { unit_of_measurement: "kW" }),
+        s(ENT.grid, v.grid ?? 1250, { unit_of_measurement: "W" }),
+        s(ENT.weather, v.wx ?? "partlycloudy", { temperature: v.out }), s("sun.sun", v.night ? "below_horizon" : "above_horizon"),
         s(ENT.thermostat, "heat", { temperature: 21.5, current_temperature: 21.0, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
       ]),
       callService: (domain, service, data) => window.calls.push([domain, service, data]),
@@ -47,9 +53,13 @@
     return card;
   }
   mount("pl-heating", { entities: ENT },
-    hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35 }));
-  mount("pl-idle-dark", { entities: ENT, title: "Piec" },
-    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0 }));
+    hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35, pv1: 2450, pv2: 1.12 }));
+  mount("pl-idle-dark", { entities: ENT, title: "Piec", pv1_name: "Dach S", pv2_name: "Garaż" },
+    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, wx: "rainy", grid: -3400 }));
+  mount("pl-wide", { entities: ENT },
+    hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35, pv1: 2450, pv2: 1.12 }));
+  mount("pl-wide-dark", { entities: ENT },
+    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, wx: "rainy", night: true }));
   mount("en-minimal", {
     language: "en", pump_on: 35, entities: { boiler_supply: ENT.boiler_supply, boiler_return: ENT.boiler_return,
       supply: ENT.supply, return: ENT.return, hotwater: ENT.hotwater, room: ENT.room },

@@ -4,351 +4,119 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Piec CO + CWU – makieta</title>
+<!-- The mockup renders the real card (furnace-card.js) with a simulated hass object. -->
+<script src="furnace-card.js"></script>
 <style>
-  :root {
-    --bg: #f1f3f4; --card: #ffffff; --panel: #f8f9fa; --frame: #5f6368; --text: #202124; --muted: #5f6368;
-    --off: #c4c7cc; --accent: #1a73e8; --page: #e8eaed;
-    --roof: #c2410c; --roof-dark: #9a3412; --glass: #bfdbfe;
-  }
+  :root { --page: #e8eaed; --panel: #ffffff; --text: #202124; }
   :root[data-theme="dark"] {
-    --bg: #1c1c1c; --card: #2b2b2b; --panel: #333333; --frame: #9aa0a6; --text: #e8eaed; --muted: #9aa0a6;
-    --off: #5a5d61; --accent: #8ab4f8; --page: #111111;
-    --roof: #9a3412; --roof-dark: #7c2d12; --glass: #fde68a;
+    --page: #111111; --panel: #2b2b2b; --text: #e8eaed;
+    --card-background-color: #1c1c1c; --primary-text-color: #e8eaed; --secondary-text-color: #9aa0a6;
+    --primary-color: #8ab4f8; --disabled-color: #5a5d61;
   }
-  body { margin: 0; background: var(--page); font-family: Helvetica, Arial, sans-serif; color: var(--text); }
-  .wrap { max-width: 500px; margin: 0 auto; padding: 16px; }
-  .card { background: var(--bg); border-radius: 12px; padding: 8px 8px 4px; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
-  .card h2 { margin: 4px 8px 0; font-size: 20px; font-weight: 400; }
-  svg { width: 100%; height: auto; display: block; }
-  .pipe { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; transition: stroke .4s; }
-  .lbl { fill: var(--muted); font-size: 12px; }
-  .val { fill: var(--text); font-size: 14px; font-weight: bold; }
-  .big { fill: var(--text); font-size: 22px; font-weight: bold; }
-  .title { fill: var(--text); font-size: 14px; font-weight: bold; }
-  .frame { fill: var(--card); stroke: var(--frame); stroke-width: 1.5; }
-  .click { cursor: pointer; }
-  .click:hover { opacity: .75; }
-  .btn circle { fill: var(--card); stroke: var(--accent); stroke-width: 1.5; }
-  .btn path { stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; fill: none; }
-  .btn { cursor: pointer; }
-  .btn:hover circle { fill: var(--accent); fill-opacity: .15; }
-  .spin { transform-box: fill-box; transform-origin: center; animation: spin 1.6s steps(48) infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .9s ease-in-out infinite alternate; }
-  @keyframes flick { from { transform: scale(1, .92); } to { transform: scale(.94, 1.06); } }
-  .flow { stroke-dasharray: 2 18; stroke-width: 2.5; stroke: #fff; stroke-opacity: .55; fill: none; stroke-linecap: round;
-          animation: flow 1.2s linear infinite; }
-  @keyframes flow { to { stroke-dashoffset: -20; } }
-  .demo { margin-top: 16px; background: var(--card); border-radius: 12px; padding: 12px 16px; font-size: 13px;
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 20px; }
+  body { margin: 0; background: var(--page); font-family: Roboto, Helvetica, Arial, sans-serif; color: var(--text); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  #card { max-width: 500px; }
+  .wide #card { max-width: none; }
+  ha-card { display: block; background: var(--card-background-color, #fff); border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .demo { margin-top: 16px; background: var(--panel); border-radius: 12px; padding: 12px 16px; font-size: 13px;
+          display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
   .demo h3 { grid-column: 1 / -1; margin: 0; font-size: 14px; }
   .demo label { display: flex; align-items: center; gap: 8px; }
-  .demo input[type=range] { flex: 1; }
-  .demo output { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+  .demo input[type=range] { flex: 1; min-width: 0; }
+  .demo output { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff;
            padding: 10px 16px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="card">
-  <h2>Kotłownia</h2>
-  <svg id="svg" viewBox="0 0 500 560" font-family="Helvetica, Arial, sans-serif" font-size="13">
-    <defs>
-      <linearGradient id="grad-rad" x1="0" y1="0" x2="0" y2="1">
-        <stop id="grad-rad-in" offset="0"/><stop id="grad-rad-out" offset="1"/>
-      </linearGradient>
-      <linearGradient id="grad-tank" x1="0" y1="0" x2="0" y2="1">
-        <stop id="grad-tank-top" offset="0"/><stop id="grad-tank-bot" offset="1" stop-color="#3b82f6"/>
-      </linearGradient>
-    </defs>
-
-    <!-- outdoor -->
-    <g class="click" data-entity="outdoor">
-      <circle cx="22" cy="24" r="11" fill="#fbbc04"/>
-      <path d="M14,44 a9,9 0 0 1 5,-16 a12,12 0 0 1 22,3 a8,8 0 0 1 2,15 h-26 a7,7 0 0 1 -3,-2 z" fill="#fff" stroke="#9aa0a6" stroke-width="1.5"/>
-      <text x="52" y="24" class="lbl">Zewnętrzna</text>
-      <text id="val-outdoor" x="52" y="43" font-size="18" font-weight="bold">-3 °C</text>
-    </g>
-
-    <!-- ===== pipes ===== -->
-    <!-- 4D ports: N = boiler supply in, W = boiler return out, E = installation supply out, S = installation return in -->
-    <path id="pipe-boiler-supply" class="pipe" d="M40,330 V110 H190 V150"/>
-    <path id="pipe-boiler-return" class="pipe" d="M170,170 H80 V330"/>
-    <path id="pipe-inst-supply" class="pipe" d="M210,170 H300"/>
-    <path id="pipe-house-supply" class="pipe" d="M300,170 H316"/>
-    <path id="pipe-cwu-supply" class="pipe" d="M300,170 V380 H360"/>
-    <path id="pipe-cwu-return" class="pipe" d="M430,436 H488"/>
-    <path id="pipe-house-return" class="pipe" d="M472,200 H488 V520 H190"/>
-    <path id="pipe-inst-return" class="pipe" d="M190,520 V190"/>
-    <g id="flows">
-      <path class="flow" d="M40,330 V110 H190 V150"/>
-      <path class="flow" d="M210,170 H316"/>
-      <path id="flow-cwu" class="flow" d="M300,170 V380 H360"/>
-      <path class="flow" d="M472,200 H488 V520 H190 V190"/>
-      <path class="flow" d="M170,170 H80 V330"/>
-    </g>
-
-    <!-- ===== boiler (bottom left) ===== -->
-    <g id="boiler">
-      <rect x="94" y="310" width="12" height="20" fill="var(--frame)"/>
-      <g id="smoke" fill="var(--muted)" fill-opacity=".35">
-        <circle cx="104" cy="301" r="3.5"/><circle cx="112" cy="291" r="4.5"/><circle cx="122" cy="280" r="5.5"/>
-      </g>
-      <rect x="10" y="330" width="100" height="180" rx="6" class="frame" stroke-width="2"/>
-      <rect x="20" y="340" width="80" height="40" rx="4" fill="none" stroke="var(--frame)" stroke-width="1.5"/>
-      <text x="60" y="357" text-anchor="middle" class="title">Kocioł CO</text>
-      <text x="60" y="373" text-anchor="middle" id="st-burner" class="lbl click" data-entity="burner">pali się</text>
-      <rect x="20" y="388" width="80" height="80" rx="4" fill="#2a1a12" stroke="var(--frame)" stroke-width="1.5"/>
-      <g transform="translate(60,464) scale(0.66) translate(-190,-392)">
-        <g id="flame" class="flame">
-          <path d="M190,392 c-28,0 -38,-22 -28,-44 c6,12 12,14 14,6 c-4,-18 6,-34 18,-44 c-2,16 10,22 16,34 c4,-6 4,-12 2,-18 c14,14 18,34 8,50 c-6,10 -16,16 -30,16 z" fill="#f97316"/>
-          <path d="M190,392 c-14,0 -20,-12 -14,-24 c4,6 8,6 8,0 c0,-10 6,-16 12,-22 c0,10 8,14 10,24 c4,12 -4,22 -16,22 z" fill="#fde047"/>
-        </g>
-      </g>
-      <rect x="20" y="476" width="80" height="26" rx="4" fill="none" stroke="var(--frame)" stroke-width="1.5"/>
-      <text x="60" y="493" text-anchor="middle" class="lbl" font-size="11">popielnik</text>
-    </g>
-    <g class="click" data-entity="boiler_supply">
-      <text x="115" y="84" class="lbl" text-anchor="middle">zasilanie kotła</text>
-      <text id="val-boiler-supply" x="115" y="101" text-anchor="middle" class="val">62.4 °C</text>
-    </g>
-    <g class="click" data-entity="boiler_return">
-      <text x="90" y="238" class="lbl">powrót kotła</text>
-      <text id="val-boiler-return" x="90" y="255" class="val">45.6 °C</text>
-    </g>
-
-    <!-- ===== 4D mixing valve ===== -->
-    <text x="164" y="157" text-anchor="end" class="lbl" font-size="11">zawór 4D</text>
-    <g id="valve" class="click" data-entity="valve" transform="translate(190,170)">
-      <circle r="20" fill="var(--card)" stroke="var(--frame)" stroke-width="2"/>
-      <g id="valve-vane"><path d="M-15,-15 L15,15" stroke="var(--text)" stroke-width="4.5" stroke-linecap="round"/></g>
-      <circle r="4" fill="var(--text)"/>
-    </g>
-    <g transform="translate(190,208)">
-      <g class="btn" id="btn-valve-down" transform="translate(-36,0)"><circle r="9"/><path d="M-4,0 H4"/></g>
-      <rect x="-23" y="-12" width="46" height="24" rx="12" id="valve-pill" fill="#188038"/>
-      <text id="val-valve" class="click" data-entity="valve" text-anchor="middle" y="5" fill="#fff" font-weight="bold" font-size="13">35%</text>
-      <g class="btn" id="btn-valve-up" transform="translate(36,0)"><circle r="9"/><path d="M-4,0 H4 M0,-4 V4"/></g>
-    </g>
-
-    <!-- ===== CO pump (hot side of the 4D valve) ===== -->
-    <text x="256" y="144" text-anchor="middle" class="lbl">Pompa CO</text>
-    <g id="pump" class="click" data-entity="pump" transform="translate(256,170)">
-      <circle r="16" fill="#fff" stroke="#5f6368" stroke-width="2"/>
-      <g id="impeller" class="spin" fill="#1a73e8"><path d="M0,0 C5,-2 8,-7 8,-12 C3,-10 1,-5 0,0 Z"/><path d="M0,0 C5,-2 8,-7 8,-12 C3,-10 1,-5 0,0 Z" transform="rotate(90)"/><path d="M0,0 C5,-2 8,-7 8,-12 C3,-10 1,-5 0,0 Z" transform="rotate(180)"/><path d="M0,0 C5,-2 8,-7 8,-12 C3,-10 1,-5 0,0 Z" transform="rotate(270)"/><circle r="2.5" fill="#fff" stroke="#5f6368"/></g>
-    </g>
-    <text id="st-pump" x="256" y="204" text-anchor="middle" class="val click" data-entity="pump">praca</text>
-    <g class="click" data-entity="inst_supply">
-      <text x="208" y="250" class="lbl">zasilanie CO</text>
-      <text id="val-inst-supply" x="208" y="267" class="val">48.5 °C</text>
-    </g>
-    <g class="click" data-entity="inst_return">
-      <text x="202" y="480" class="lbl">powrót CO</text>
-      <text id="val-inst-return" x="202" y="497" class="val">38.9 °C</text>
-    </g>
-
-    <!-- ===== house ===== -->
-    <g id="house">
-      <rect x="440" y="38" width="16" height="32" fill="var(--roof-dark)" stroke="var(--frame)" stroke-width="1.5"/>
-      <rect x="436" y="34" width="24" height="6" rx="1.5" fill="var(--roof-dark)" stroke="var(--frame)" stroke-width="1.5"/>
-      <path d="M302,82 L394,28 L486,82 Z" fill="var(--roof)" stroke="var(--frame)" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M332,74 L394,37 L456,74" fill="none" stroke="var(--roof-dark)" stroke-width="1.5" stroke-opacity=".6"/>
-      <circle cx="394" cy="62" r="9" fill="var(--glass)" stroke="var(--frame)" stroke-width="1.5"/>
-      <path d="M394,53 V71 M385,62 H403" stroke="var(--frame)" stroke-width="1.2"/>
-      <rect x="316" y="82" width="156" height="138" rx="4" class="frame" stroke-width="2"/>
-      <rect x="320" y="154" width="148" height="62" rx="4" fill="url(#grad-rad)" fill-opacity=".25"/>
-      <g id="rad-fins" fill="url(#grad-rad)"><rect x="326" y="160" width="12" height="50" rx="4"/><rect x="342" y="160" width="12" height="50" rx="4"/><rect x="358" y="160" width="12" height="50" rx="4"/><rect x="374" y="160" width="12" height="50" rx="4"/><rect x="390" y="160" width="12" height="50" rx="4"/><rect x="406" y="160" width="12" height="50" rx="4"/><rect x="422" y="160" width="12" height="50" rx="4"/><rect x="438" y="160" width="12" height="50" rx="4"/><rect x="454" y="160" width="12" height="50" rx="4"/></g>
-      <text x="324" y="100" class="title">Dom</text>
-      <g class="click" data-entity="room">
-        <text id="val-room" x="394" y="140" text-anchor="middle" class="big">21.2 °C</text>
-      </g>
-    </g>
-    <g transform="translate(394,246)">
-      <text text-anchor="middle" class="lbl" y="-14" font-size="11">termostat</text>
-      <g class="btn" id="btn-room-down" transform="translate(-44,0)"><circle r="10"/><path d="M-5,0 H5"/></g>
-      <text id="val-room-target" class="val click" data-entity="thermostat" text-anchor="middle" y="5">21.5 °C</text>
-      <g class="btn" id="btn-room-up" transform="translate(44,0)"><circle r="10"/><path d="M-5,0 H5 M0,-5 V5"/></g>
-    </g>
-
-    <!-- ===== CWU ===== -->
-    <g id="tank">
-      <text x="395" y="300" text-anchor="middle" class="title">CWU</text>
-      <rect x="360" y="310" width="70" height="170" rx="30" fill="url(#grad-tank)" fill-opacity=".3" stroke="var(--frame)" stroke-width="2"/>
-      <path id="cwu-coil" d="M360,380 H410 a7,7 0 0 1 0,14 H378 a7,7 0 0 0 0,14 H410 a7,7 0 0 1 0,14 H378 a7,7 0 0 0 0,14 H430"
-            fill="none" stroke-width="4" stroke-linecap="round"/>
-      <path id="heater" d="M371,460 l4,-6 l8,12 l8,-12 l8,12 l8,-12 l8,12 l4,-6" fill="none" stroke-width="3" stroke-linejoin="round"/>
-    </g>
-    <g class="click" data-entity="cwu">
-      <text id="val-cwu" x="395" y="350" text-anchor="middle" class="val">52.0 °C</text>
-    </g>
-    <g id="cwu-valve" class="click" data-entity="cwu_valve" transform="translate(330,380)">
-      <rect x="-7" y="-28" width="14" height="10" rx="2" fill="var(--card)" stroke="var(--frame)" stroke-width="1.5"/>
-      <path d="M0,-18 V-12" stroke="var(--frame)" stroke-width="2"/>
-      <circle r="12" fill="var(--card)" stroke="var(--frame)" stroke-width="2"/>
-      <rect id="cwu-valve-bore" x="-10" y="-4" width="20" height="8" rx="2" fill="#188038"/>
-    </g>
-    <g transform="translate(330,412)">
-      <g id="btn-cwuv-toggle" class="btn">
-        <rect x="-21" y="-11" width="42" height="22" rx="11" id="cwu-valve-pill" fill="#188038"/>
-        <text id="val-cwu-valve" text-anchor="middle" y="5" fill="#fff" font-weight="bold" font-size="12">ON</text>
-      </g>
-    </g>
-    <text x="330" y="440" text-anchor="middle" class="lbl click" data-entity="cwu_valve" font-size="11">zawór<tspan x="330" dy="13">CWU</tspan></text>
-    <g class="click" data-entity="heater" transform="translate(352,488)">
-      <path id="heater-icon" d="M11,15H6L13,1V9H18L11,23V15Z" fill="#fbbc04" transform="scale(.8)"/>
-      <text x="20" y="14" class="lbl">grzałka</text>
-      <text id="st-heater" x="68" y="14" class="val">ON</text>
-    </g>
-
-    <!-- legend -->
-    <g transform="translate(200,550)">
-      <rect id="legend" width="130" height="7" rx="2"/>
-      <text class="lbl" x="0" y="-5" font-size="11">20°</text>
-      <text class="lbl" x="65" y="-5" text-anchor="middle" font-size="11">50°</text>
-      <text class="lbl" x="130" y="-5" text-anchor="end" font-size="11">80°</text>
-      <rect x="150" width="26" height="7" rx="3.5" fill="var(--off)"/>
-      <text class="lbl" x="182" y="7" font-size="11">brak przepływu</text>
-    </g>
-  </svg>
-</div>
-
-<div class="demo" id="demo">
-  <h3>Symulacja (tylko makieta – w HA wartości przyjdą z encji)</h3>
-  <label>Zasilanie kotła <input type="range" min="15" max="90" step="0.5" data-k="boiler_supply"><output></output></label>
-  <label>Powrót kotła <input type="range" min="15" max="90" step="0.5" data-k="boiler_return"><output></output></label>
-  <label>Zasilanie CO <input type="range" min="15" max="90" step="0.5" data-k="inst_supply"><output></output></label>
-  <label>Powrót CO <input type="range" min="15" max="90" step="0.5" data-k="inst_return"><output></output></label>
-  <label>CWU <input type="range" min="10" max="70" step="0.5" data-k="cwu"><output></output></label>
-  <label>Pokój <input type="range" min="15" max="26" step="0.1" data-k="room"><output></output></label>
-  <label>Zewnętrzna <input type="range" min="-20" max="30" step="0.5" data-k="outdoor"><output></output></label>
-  <label><input type="checkbox" data-k="pump"> Pompa CO pracuje</label>
-  <label><input type="checkbox" data-k="burner"> Palnik / kocioł pali</label>
-  <label><input type="checkbox" data-k="cwu_valve"> Zawór CWU otwarty</label>
-  <label><input type="checkbox" data-k="heater"> Grzałka CWU</label>
-  <label><input type="checkbox" id="dark"> Ciemny motyw</label>
-</div>
+  <div id="card"></div>
+  <div class="demo" id="demo">
+    <h3>Symulacja (w HA wartości przyjdą z encji)</h3>
+    <label>Zas. kotła <input type="range" min="15" max="90" step="0.5" data-k="boiler_supply"><output></output></label>
+    <label>Pow. kotła <input type="range" min="15" max="90" step="0.5" data-k="boiler_return"><output></output></label>
+    <label>Zas. CO <input type="range" min="15" max="90" step="0.5" data-k="supply"><output></output></label>
+    <label>Pow. CO <input type="range" min="15" max="90" step="0.5" data-k="return"><output></output></label>
+    <label>CWU <input type="range" min="10" max="70" step="0.5" data-k="hotwater"><output></output></label>
+    <label>Dom <input type="range" min="15" max="26" step="0.1" data-k="room"><output></output></label>
+    <label>Zewn. <input type="range" min="-20" max="30" step="0.5" data-k="outdoor"><output></output></label>
+    <label>Zawór 4D <input type="range" min="0" max="100" step="1" data-k="valve"><output></output></label>
+    <label>Falownik 1 <input type="range" min="0" max="10" step="0.05" data-k="pv1"><output></output></label>
+    <label>Falownik 2 <input type="range" min="0" max="10" step="0.05" data-k="pv2"><output></output></label>
+    <label>Sieć (+ pobór) <input type="range" min="-8" max="8" step="0.05" data-k="grid"><output></output></label>
+    <label>Pogoda <select data-k="weather"><option>sunny</option><option>clear-night</option><option>partlycloudy</option><option>cloudy</option><option>rainy</option><option>pouring</option><option>snowy</option><option>snowy-rainy</option><option>hail</option><option>lightning</option><option>lightning-rainy</option><option>fog</option><option>windy</option><option>windy-variant</option></select></label>
+    <label><input type="checkbox" data-k="hotwater_valve"> Zawór CWU otwarty</label>
+    <label><input type="checkbox" data-k="heater"> Grzałka CWU</label>
+    <label><input type="checkbox" id="dark"> Ciemny motyw</label>
+    <label><input type="checkbox" id="wide"> Szeroka karta (układ poziomy)</label>
+  </div>
+  <p style="font-size:12px;opacity:.7">Pompa CO pracuje od 40 °C zasilania kotła, „pali się” od 45 °C (histereza 2 °C).</p>
 </div>
 <div id="toast"></div>
 
 <script>
-const S = {
-  outdoor: -3, boiler_supply: 62.4, boiler_return: 45.6, inst_supply: 48.5, inst_return: 38.9, cwu: 52,
-  room: 21.2, valve: 35, room_target: 21.5, cwu_valve: true,
-  pump: true, burner: true, heater: false,
+const ENT = {
+  boiler_supply: "sensor.piec_zasilanie", boiler_return: "sensor.piec_powrot", supply: "sensor.co_zasilanie",
+  return: "sensor.co_powrot", hotwater: "sensor.cwu", hotwater_valve: "switch.zawor_cwu",
+  heater: "binary_sensor.grzalka_cwu", room: "sensor.dom", outdoor: "sensor.zewnetrzna", valve: "number.zawor_4d",
+  thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
+  weather: "weather.dom", grid: "sensor.siec_moc",
 };
-const STOPS = [[20, [37, 99, 235]], [35, [6, 182, 212]], [45, [34, 197, 94]], [55, [234, 179, 8]],
-               [65, [249, 115, 22]], [80, [220, 38, 38]]];
-const tcol = t => {
-  if (t <= STOPS[0][0]) return rgb(STOPS[0][1]);
-  if (t >= STOPS.at(-1)[0]) return rgb(STOPS.at(-1)[1]);
-  for (let i = 0; i < STOPS.length - 1; i++) {
-    const [a, ca] = STOPS[i], [b, cb] = STOPS[i + 1];
-    if (t >= a && t <= b) { const f = (t - a) / (b - a); return rgb(ca.map((x, j) => Math.round(x + (cb[j] - x) * f))); }
-  }
-};
-const rgb = c => `rgb(${c.join(',')})`;
-const $ = id => document.getElementById(id);
-const OFF = () => getComputedStyle(document.documentElement).getPropertyValue('--off').trim();
-const fmt = t => `${t.toFixed(1)} °C`;
+const S = { boiler_supply: 62.4, boiler_return: 45.6, supply: 48.5, return: 38.9, hotwater: 52, room: 21.2,
+  outdoor: -3, valve: 35, hotwater_valve: true, heater: false, setpoint: 21.5, pv1: 2.4, pv2: 1.1, weather: "partlycloudy", grid: 1.2 };
 
-function render() {
-  const off = OFF(), p = S.pump, cwu = p && S.cwu_valve;
-  const set = (id, t, active = true) => $(id).style.stroke = active ? tcol(t) : off;
-  set('pipe-boiler-supply', S.boiler_supply, p);
-  set('pipe-boiler-return', S.boiler_return, p);
-  set('pipe-inst-supply', S.inst_supply, p);
-  set('pipe-house-supply', S.inst_supply, p);
-  set('pipe-cwu-supply', S.inst_supply, cwu);
-  set('pipe-house-return', S.inst_return, p);
-  set('pipe-cwu-return', S.inst_return, cwu);
-  set('pipe-inst-return', S.inst_return, p);
-  $('cwu-coil').style.stroke = cwu ? tcol(S.inst_supply) : off;
-  $('flows').style.display = p ? '' : 'none';
-  $('flow-cwu').style.display = cwu ? '' : 'none';
-  $('grad-rad-in').setAttribute('stop-color', p ? tcol(S.inst_supply) : off);
-  $('grad-rad-out').setAttribute('stop-color', p ? tcol(S.inst_return) : off);
-  $('grad-tank-top').setAttribute('stop-color', tcol(S.cwu));
+const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1800); };
 
-  $('val-outdoor').textContent = `${S.outdoor.toFixed(0)} °C`;
-  $('val-outdoor').style.fill = S.outdoor < 0 ? '#3b82f6' : 'var(--text)';
-  $('val-boiler-supply').textContent = fmt(S.boiler_supply);
-  $('val-boiler-supply').style.fill = tcol(S.boiler_supply);
-  $('val-boiler-return').textContent = fmt(S.boiler_return);
-  $('val-boiler-return').style.fill = tcol(S.boiler_return);
-  $('val-inst-supply').textContent = fmt(S.inst_supply);
-  $('val-inst-supply').style.fill = tcol(S.inst_supply);
-  $('val-inst-return').textContent = fmt(S.inst_return);
-  $('val-inst-return').style.fill = tcol(S.inst_return);
-  $('val-cwu').textContent = fmt(S.cwu);
-  $('val-room').textContent = fmt(S.room);
-  $('val-room-target').textContent = `${S.room_target.toFixed(1)} °C`;
+function hass() {
+  const st = (id, state, attributes = {}) => [id, { entity_id: id, state: String(state), attributes }];
+  const onoff = (b) => (b ? "on" : "off");
+  return {
+    language: "pl", locale: { language: "pl" },
+    states: Object.fromEntries([
+      st(ENT.boiler_supply, S.boiler_supply), st(ENT.boiler_return, S.boiler_return), st(ENT.supply, S.supply),
+      st(ENT.return, S.return), st(ENT.hotwater, S.hotwater), st(ENT.hotwater_valve, onoff(S.hotwater_valve)),
+      st(ENT.heater, onoff(S.heater)), st(ENT.room, S.room), st(ENT.outdoor, S.outdoor),
+      st(ENT.valve, S.valve, { min: 0, max: 100, step: 1 }),
+      st(ENT.pv1, S.pv1, { unit_of_measurement: "kW" }), st(ENT.pv2, S.pv2, { unit_of_measurement: "kW" }),
+      st(ENT.grid, S.grid, { unit_of_measurement: "kW" }),
+      st(ENT.weather, S.weather, { temperature: S.outdoor }),
+      st(ENT.thermostat, "heat", { temperature: S.setpoint, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
+    ]),
+    callService(domain, service, data) {
+      toast(`${domain}.${service} ${JSON.stringify(data)}`);
+      if (data.entity_id === ENT.valve) S.valve = data.value;
+      if (data.entity_id === ENT.thermostat) S.setpoint = data.temperature;
+      if (data.entity_id === ENT.hotwater_valve) S.hotwater_valve = !S.hotwater_valve;
+      refresh();
+    },
+  };
+}
 
-  // 4D valve: vane turns from 0 % (-45°, boiler closed: installation loops on itself) to 100 % (+45°)
-  $('val-valve').textContent = `${Math.round(S.valve)}%`;
-  $('valve-vane').setAttribute('transform', `rotate(${90 * (1 - S.valve / 100)})`);
-  $('valve-pill').setAttribute('fill', S.valve > 0 ? '#188038' : '#5f6368');
+const card = document.createElement("furnace-card");
+card.setConfig({ entities: ENT });
+card.addEventListener("hass-more-info", (e) => toast(`more-info: ${e.detail.entityId}`));
+document.getElementById("card").appendChild(card);
 
-  $('impeller').classList.toggle('spin', p);
-  $('impeller').setAttribute('fill', p ? '#1a73e8' : '#9aa0a6');
-  $('st-pump').textContent = p ? 'praca' : 'stop';
-
-  $('flame').style.display = S.burner ? '' : 'none';
-  $('smoke').style.display = S.burner ? '' : 'none';
-  $('st-burner').textContent = S.burner ? 'pali się' : 'wygaszony';
-
-  // CWU valve: bore along the pipe = open, across = closed
-  const v = S.cwu_valve;
-  $('val-cwu-valve').textContent = v ? 'ON' : 'OFF';
-  $('cwu-valve-bore').setAttribute('transform', v ? '' : 'rotate(90)');
-  $('cwu-valve-bore').setAttribute('fill', v ? '#188038' : '#5f6368');
-  $('cwu-valve-pill').setAttribute('fill', v ? '#188038' : '#5f6368');
-
-  $('heater').style.stroke = S.heater ? '#dc2626' : off;
-  $('heater-icon').style.fill = S.heater ? '#fbbc04' : off;
-  $('st-heater').textContent = S.heater ? 'ON' : 'OFF';
-
-  // demo panel sync
-  document.querySelectorAll('#demo [data-k]').forEach(el => {
-    if (el.type === 'checkbox') el.checked = S[el.dataset.k];
+function refresh() {
+  card.hass = hass();
+  document.querySelectorAll("#demo [data-k]").forEach((el) => {
+    if (el.type === "checkbox") el.checked = S[el.dataset.k];
+    else if (el.tagName === "SELECT") el.value = S[el.dataset.k];
     else { el.value = S[el.dataset.k]; el.nextElementSibling.textContent = S[el.dataset.k]; }
   });
 }
-
-// legend gradient
-(() => {
-  const svg = $('svg'), ns = 'http://www.w3.org/2000/svg';
-  const g = document.createElementNS(ns, 'linearGradient'); g.id = 'grad-legend';
-  STOPS.forEach(([t]) => { const s = document.createElementNS(ns, 'stop');
-    s.setAttribute('offset', (t - 20) / 60); s.setAttribute('stop-color', tcol(t)); g.appendChild(s); });
-  svg.querySelector('defs').appendChild(g);
-  $('legend').setAttribute('fill', 'url(#grad-legend)');
-})();
-
-const toast = msg => { const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
-  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1600); };
-
-const step = (k, d, min, max) => { S[k] = Math.min(max, Math.max(min, +(S[k] + d).toFixed(1))); render();
-  toast(`number.set_value → ${k} = ${S[k]}`); };
-$('btn-valve-down').onclick = () => step('valve', -5, 0, 100);
-$('btn-valve-up').onclick = () => step('valve', 5, 0, 100);
-$('btn-room-down').onclick = () => step('room_target', -0.5, 10, 28);
-$('btn-room-up').onclick = () => step('room_target', 0.5, 10, 28);
-$('btn-cwuv-toggle').onclick = () => { S.cwu_valve = !S.cwu_valve; render();
-  toast(`switch.turn_${S.cwu_valve ? 'on' : 'off'} → cwu_valve`); };
-document.querySelectorAll('[data-entity]').forEach(el => el.addEventListener('click', e => {
-  if (e.target.closest('.btn')) return;
-  e.stopPropagation(); toast(`more-info: ${el.dataset.entity}`);
+document.querySelectorAll("#demo [data-k]").forEach((el) => el.addEventListener("input", () => {
+  S[el.dataset.k] = el.type === "checkbox" ? el.checked : el.tagName === "SELECT" ? el.value : +el.value;
+  refresh();
 }));
-
-document.querySelectorAll('#demo [data-k]').forEach(el => el.addEventListener('input', () => {
-  S[el.dataset.k] = el.type === 'checkbox' ? el.checked : +el.value; render();
-}));
-$('dark').addEventListener('change', e => {
-  document.documentElement.dataset.theme = e.target.checked ? 'dark' : 'light'; render();
+document.getElementById("dark").addEventListener("change", (e) => {
+  document.documentElement.dataset.theme = e.target.checked ? "dark" : "light";
 });
-if (location.hash === '#dark') { document.documentElement.dataset.theme = 'dark'; $('dark').checked = true; }
-render();
+document.getElementById("wide").addEventListener("change", (e) => document.body.classList.toggle("wide", e.target.checked));
+if (location.hash === "#dark") { document.documentElement.dataset.theme = "dark"; document.getElementById("dark").checked = true; }
+refresh();
 </script>
 </body>
 </html>
