@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>furnace-card test</title>
+<style>
+  body { margin: 0; padding: 16px; background: #e8eaed; font-family: Helvetica, Arial, sans-serif; }
+  .scenario { width: 500px; padding: 8px; margin-bottom: 16px; display: inline-block; vertical-align: top; }
+  .dark { background: #111; --card-background-color: #2b2b2b; --primary-text-color: #e8eaed;
+          --secondary-text-color: #9aa0a6; --primary-color: #8ab4f8; --disabled-color: #5a5d61; }
+  ha-card { display: block; background: var(--card-background-color, #fff); border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+</style>
+<script src="../furnace-card.js"></script>
+</head>
+<body>
+<div id="pl-heating" class="scenario"></div>
+<div id="pl-idle-dark" class="scenario dark"></div>
+<div id="en-minimal" class="scenario"></div>
+<script>
+  window.calls = [];
+  const ENT = {
+    boiler_supply: "sensor.piec_zasilanie", boiler_return: "sensor.piec_powrot", supply: "sensor.co_zasilanie",
+    return: "sensor.co_powrot", hotwater: "sensor.cwu", hotwater_valve: "switch.zawor_cwu",
+    heater: "switch.grzalka_cwu", room: "sensor.salon", outdoor: "sensor.zewnetrzna", valve: "number.zawor_4d",
+    thermostat: "climate.dom",
+  };
+  function hass(v, language = "pl") {
+    const s = (id, state, attributes = {}) => [id, { entity_id: id, state: String(state), attributes }];
+    return {
+      language, locale: { language },
+      states: Object.fromEntries([
+        s(ENT.boiler_supply, v.bs), s(ENT.boiler_return, v.br), s(ENT.supply, v.sup), s(ENT.return, v.ret),
+        s(ENT.hotwater, v.hw), s(ENT.hotwater_valve, v.hwv), s(ENT.heater, v.heater), s(ENT.room, v.room),
+        s(ENT.outdoor, v.out), s(ENT.valve, v.valve, { min: 0, max: 100, step: 1 }),
+        s(ENT.thermostat, "heat", { temperature: 21.5, current_temperature: 21.0, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
+      ]),
+      callService: (domain, service, data) => window.calls.push([domain, service, data]),
+    };
+  }
+  function mount(id, config, h) {
+    const card = document.createElement("furnace-card");
+    card.setConfig(config);
+    card.hass = h;
+    card.addEventListener("hass-more-info", (e) => window.calls.push(["more-info", e.detail.entityId]));
+    document.getElementById(id).appendChild(card);
+    return card;
+  }
+  mount("pl-heating", { entities: ENT },
+    hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35 }));
+  mount("pl-idle-dark", { entities: ENT, title: "Piec" },
+    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0 }));
+  mount("en-minimal", {
+    language: "en", pump_on: 35, entities: { boiler_supply: ENT.boiler_supply, boiler_return: ENT.boiler_return,
+      supply: ENT.supply, return: ENT.return, hotwater: ENT.hotwater, room: ENT.room },
+  }, hass({ bs: 55, br: 40, sup: 44, ret: 36, hw: 47, hwv: "on", heater: "off", room: 21.8, out: 2, valve: 60 }, "en"));
+</script>
+<script>
+  // ?test: click through the controls and print the results into the page (read with --dump-dom)
+  if (location.search.includes("test")) setTimeout(() => {
+    const root = document.querySelector("#pl-heating furnace-card").shadowRoot;
+    const click = (id) => root.getElementById(id).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    click("btn-valve-up"); click("btn-valve-up");
+    const shown = root.getElementById("val-valve").textContent;
+    click("btn-sp-down");
+    click("btn-hw-valve");
+    click("val-boiler-supply");
+    root.querySelector('[data-entity="heater"]').dispatchEvent(new MouseEvent("click"));
+    const idle = document.querySelector("#pl-idle-dark furnace-card").shadowRoot;
+    const res = { shown, pumpIdle: idle.getElementById("st-pump").textContent,
+      spinIdle: idle.getElementById("impeller").classList.contains("spin"),
+      minimalHidden: ["grp-valve", "grp-thermostat", "grp-hw-valve", "grp-heater", "grp-outdoor"].map((id) =>
+        document.querySelector("#en-minimal furnace-card").shadowRoot.getElementById(id).classList.contains("hidden")) };
+    setTimeout(() => {
+      res.calls = window.calls;
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = JSON.stringify(res);
+      document.body.appendChild(pre);
+    }, 1000);
+  }, 300);
+</script>
+</body>
+</html>
