@@ -6,10 +6,11 @@ the hot side of the valve, the house radiators and the hot water tank (CWU) with
 - **Pipe colours follow the temperature** (20 °C blue → 80 °C red, configurable). Pipes with no flow turn grey.
 - **Heating pump and fire without entities:** both follow the boiler supply temperature. The pump runs from
   `pump_on` °C, the fire is shown from `burning_on` °C, each with a hysteresis.
-- **4-way valve** drawn as a quartered disc (like the BMW roundel) that turns with the valve position: the hot quarter
-  joins the boiler supply with the heating supply when open and with the boiler return when closed. − / + change the
-  position (`number`, `input_number`, `cover`, `valve`); a `sensor` is shown read-only. Quick repeated clicks are sent
-  as one call.
+- **4-way valve** drawn as a disc split in half that turns with the valve position: the hot half joins the boiler
+  supply with the heating supply when open and with the boiler return when closed. The hot half has the boiler supply
+  colour, the other the heating return colour. A slider under the valve sets the position (drag the pill or click
+  the track; sent on release, rounded to `valve_step`) for
+  `number`, `input_number`, `cover` and `valve`; a `sensor` is shown read-only.
 - **Hot water tank** lying horizontally, coloured from the coil inlet (heating supply) to the outlet (heating return).
   Its zone valve: open = water flows through the coil, closed = the hot water branch is grey. A `switch` /
   `input_boolean` / `valve` is toggled with the ON/OFF button; a `binary_sensor` is read-only. The electric heater
@@ -19,10 +20,12 @@ the hot side of the valve, the house radiators and the hot water tank (CWU) with
   sensors are all shown in kW.
 - **Grid:** a power pole with a line to the house. Dashes run to the house while importing (red) and back to the pole
   while exporting (green), faster with more power. `grid_invert: true` flips the direction.
+- **House consumption** at the top of the house: PV total + grid (export lowers it), shown when `grid` is set.
 - **Weather icon** follows the condition of a `weather` entity (sun, moon at night, clouds, rain, snow, storm, fog,
   wind).
-- **Thermostat setpoint** with − / + (`climate` or `number`), optional.
-- Click a value to open the more-info dialog of its entity. Elements whose entity is not set are hidden.
+- **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional.
+- Pipe temperatures are shown without labels; hover shows the name. Click a value to open the more-info dialog of
+  its entity. Elements whose entity is not set are hidden.
 - **Two layouts:** portrait (narrow cards, phones) and landscape (wide cards: the boiler sits next to the valve and
   the pump, so the drawing is lower and the text larger). `layout: auto` switches at 760 px card width.
 - Polish and English (from the HA language, or `language:`), follows the HA theme (light / dark), visual editor.
@@ -67,7 +70,7 @@ burning_on: 45           # °C boiler supply from which the boiler is shown as b
 burning_hysteresis: 2    # default 2
 min_temp: 20             # colour scale (default 20..80 °C)
 max_temp: 80
-valve_step: 5            # % per − / + click on the 4-way valve (default 5)
+valve_step: 5            # 4-way valve slider step in % (default 5)
 ```
 
 Between `on - hysteresis` and `on` the pump and the fire keep their previous state. After a page reload they start

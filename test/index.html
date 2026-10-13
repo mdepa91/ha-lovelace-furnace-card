@@ -70,7 +70,11 @@
   if (location.search.includes("test")) setTimeout(() => {
     const root = document.querySelector("#pl-heating furnace-card").shadowRoot;
     const click = (id) => root.getElementById(id).dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    click("btn-valve-up"); click("btn-valve-up");
+    // drag the 4-way valve slider from 30 % to 45 % of the track
+    const track = root.getElementById("valve-track").getBoundingClientRect(), grp = root.getElementById("grp-valve");
+    const ptr = (type, f) => grp.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1,
+      clientX: track.left + track.width * f, clientY: track.top + track.height / 2 }));
+    ptr("pointerdown", 0.3); ptr("pointermove", 0.44); ptr("pointerup", 0.45);
     const shown = root.getElementById("val-valve").textContent;
     click("btn-sp-down");
     click("btn-hw-valve");

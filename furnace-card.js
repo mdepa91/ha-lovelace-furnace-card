@@ -2,20 +2,20 @@
 // the hot side of the valve, the house radiators and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.0.1";
+const CARD_VERSION = "1.1.0";
 
 const I18N = {
   pl: {
     title: "Kotłownia", outdoor: "Zewnętrzna", boiler_supply: "zasilanie kotła", boiler_return: "powrót kotła",
-    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", running: "praca",
-    stopped: "stop", boiler: "Kocioł CO", burning: "pali się", out: "wygaszony", house: "Dom",
+    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO",
+    boiler: "Kocioł CO", burning: "pali się", out: "wygaszony",
     thermostat: "termostat", hotwater: "CWU", hw_valve_1: "zawór", hw_valve_2: "CWU", heater: "grzałka", pv1: "Falownik 1", pv2: "Falownik 2", pv_total: "razem", grid: "Sieć", grid_import: "pobór", grid_export: "oddawanie",
     no_flow: "brak przepływu",
   },
   en: {
     title: "Boiler room", outdoor: "Outdoor", boiler_supply: "boiler supply", boiler_return: "boiler return",
-    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", running: "running",
-    stopped: "stopped", boiler: "Boiler", burning: "burning", out: "out", house: "House",
+    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump",
+    boiler: "Boiler", burning: "burning", out: "out",
     thermostat: "thermostat", hotwater: "DHW", hw_valve_1: "DHW", hw_valve_2: "valve", heater: "heater", pv1: "Inverter 1", pv2: "Inverter 2", pv_total: "total", grid: "Grid", grid_import: "import", grid_export: "export",
     no_flow: "no flow",
   },
@@ -135,6 +135,9 @@ function weatherIcon(cond, night) {
 const PV_COLORS = ["#c026d3", "#4f8ff7"];
 const MINUS = '<circle r="18"/><path d="M-8,0 H8"/>';
 const PLUS = '<circle r="18"/><path d="M-8,0 H8 M0,-8 V8"/>';
+// Material Design Icons (mdi:thermostat, mdi:flash), 24×24
+const MDI_THERMOSTAT = "M16.95,16.95L14.83,14.83C15.55,14.1 16,13.1 16,12C16,11.26 15.79,10.57 15.43,10L17.6,7.81C18.5,9 19,10.43 19,12C19,13.93 18.22,15.68 16.95,16.95M12,5C13.57,5 15,5.5 16.19,6.4L14,8.56C13.43,8.21 12.74,8 12,8A4,4 0 0,0 8,12C8,13.1 8.45,14.1 9.17,14.83L7.05,16.95C5.78,15.68 5,13.93 5,12A7,7 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z";
+const MDI_FLASH = "M7,2V13H10V22L17,10H13L17,2H7Z";
 
 // Coil inside the horizontal tank: vertical loops over the whole length, in on the left, out on the right.
 const COIL = (() => {
@@ -159,8 +162,8 @@ const LAYOUTS = {
       boiler_supply: "M40,330 V110 H190 V150", boiler_return: "M170,170 H80 V330", supply: "M210,170 H316",
       hw_supply: "M300,170 V330 H336", hw_return: "M476,358 H488", ret: "M472,200 H488 V450 H190 V190",
     },
-    lblBoilerSupply: [115, 84, "middle"], lblBoilerReturn: [90, 250], valve: [190, 170], valveLbl: [164, 157],
-    valvePill: [190, 212], pump: [264, 170], lblSupply: [208, 250], lblReturn: [202, 408],
+    valBoilerSupply: [115, 101], valBoilerReturn: [125, 159], valve: [190, 170],
+    valvePill: [190, 220], pump: [264, 170], valSupply: [213, 201], valReturn: [202, 425],
     hwValve: [300, 288, -90], hwPill: [240, 288], hwLbl: [240, 314], legend: [184, 494],
   },
   landscape: {
@@ -169,8 +172,8 @@ const LAYOUTS = {
       boiler_supply: "M54,220 V90 H280 V130", boiler_return: "M260,150 H94 V220", supply: "M300,150 H490",
       hw_supply: "M450,150 V310 H510", hw_return: "M650,338 H662", ret: "M646,180 H662 V420 H280 V170",
     },
-    lblBoilerSupply: [167, 64, "middle"], lblBoilerReturn: [140, 240], valve: [280, 150], valveLbl: [254, 137],
-    valvePill: [280, 192], pump: [380, 150], lblSupply: [354, 200], lblReturn: [294, 380],
+    valBoilerSupply: [167, 81], valBoilerReturn: [177, 139], valve: [280, 150],
+    valvePill: [280, 192], pump: [380, 150], valSupply: [303, 141], valReturn: [294, 397],
     hwValve: [450, 268, -90], hwPill: [390, 268], hwLbl: [390, 294], legend: [330, 444],
   },
 };
@@ -236,53 +239,54 @@ function buildSvg(L) {
     <!-- ash door: vent slots instead of a label -->
     ${[0, 1, 2, 3, 4, 5, 6].map((i) => `<rect x="${29 + i * 10}" y="482" width="4" height="14" rx="2" class="rib"/>`).join("")}
   </g>
-  <g class="click" data-entity="boiler_supply">
-    <text x="${L.lblBoilerSupply[0]}" y="${L.lblBoilerSupply[1]}" class="lbl" text-anchor="middle" data-i18n="boiler_supply"></text>
-    <text id="val-boiler-supply" x="${L.lblBoilerSupply[0]}" y="${L.lblBoilerSupply[1] + 17}" text-anchor="middle" class="val"></text>
+  <!-- pipe temperatures without labels (the colour and position say enough); the name is the hover tooltip -->
+  <g class="click" data-entity="boiler_supply"><title data-i18n="boiler_supply"></title>
+    <text id="val-boiler-supply" x="${L.valBoilerSupply[0]}" y="${L.valBoilerSupply[1]}" text-anchor="middle" class="val"></text>
   </g>
-  <g class="click" data-entity="boiler_return">
-    <text x="${L.lblBoilerReturn[0]}" y="${L.lblBoilerReturn[1]}" class="lbl" data-i18n="boiler_return"></text>
-    <text id="val-boiler-return" x="${L.lblBoilerReturn[0]}" y="${L.lblBoilerReturn[1] + 18}" class="val"></text>
+  <g class="click" data-entity="boiler_return"><title data-i18n="boiler_return"></title>
+    <text id="val-boiler-return" x="${L.valBoilerReturn[0]}" y="${L.valBoilerReturn[1]}" text-anchor="middle" class="val"></text>
   </g>
 
-  <text x="${L.valveLbl[0]}" y="${L.valveLbl[1]}" text-anchor="end" class="lbl" font-size="13" data-i18n="valve"></text>
-  <g class="click" data-entity="valve" transform="${t(L.valve)}">
-    <!-- quartered disc like the BMW roundel, turning with the valve: the hot quarter joins the boiler supply (N) with
-         the heating supply (E) when open and with the boiler return (W) when closed; the opposite quarter carries the
-         return water the same way -->
+  <g class="click" data-entity="valve" transform="${t(L.valve)}"><title data-i18n="valve"></title>
+    <!-- disc split in half, turning with the valve: the hot half joins the boiler supply (N) with the heating supply
+         (E) when open and with the boiler return (W) when closed; the other half carries the return water the same
+         way. Hot half in the boiler supply colour, the other in the heating return colour. -->
     <circle r="20" class="box" stroke-width="2"/>
     <g id="valve-disc">
-      <path id="vq-hot" d="M0,0 V-20 A20,20 0 0 1 20,0 Z"/>
-      <path d="M0,0 H20 A20,20 0 0 1 0,20 Z" class="vq-neutral"/>
-      <path id="vq-cold" d="M0,0 V20 A20,20 0 0 1 -20,0 Z"/>
-      <path d="M0,0 H-20 A20,20 0 0 1 0,-20 Z" class="vq-neutral"/>
-      <path d="M0,-20 V20 M-20,0 H20" class="outline-stroke" stroke-width="1.5"/>
+      <path id="valve-hot" fill="${OFF}" d="M-14.14,-14.14 A20,20 0 0 1 14.14,14.14 Z"/>
+      <path id="valve-cold" fill="${OFF}" d="M14.14,14.14 A20,20 0 0 1 -14.14,-14.14 Z"/>
+      <path d="M-14.14,-14.14 L14.14,14.14" class="outline-stroke" stroke-width="2.5"/>
     </g>
     <circle r="20" fill="none" class="outline-stroke" stroke-width="2"/>
     <circle r="3" class="dot"/>
   </g>
+  <!-- slider: the pill with the position slides along the track (drag it or click the track) -->
   <g id="grp-valve" transform="${t(L.valvePill)}">
-    <g class="btn" id="btn-valve-down" transform="translate(-46,0)">${MINUS}</g>
-    <g class="click" data-entity="valve">
-      <rect x="-23" y="-12" width="46" height="24" rx="12" id="valve-pill"/>
-      <text id="val-valve" text-anchor="middle" y="5" fill="#fff" font-weight="bold" font-size="15"></text>
+    <rect x="-94" y="-18" width="188" height="36" fill="transparent"/>
+    <rect id="valve-track" x="-66" y="-5" width="132" height="10" rx="5" class="track"/>
+    <rect id="valve-fill" x="-66" y="-5" height="10" rx="5"/>
+    <g id="valve-thumb">
+      <rect x="-26" y="-14" width="52" height="28" rx="14" id="valve-pill" class="thumb"/>
+      <text id="val-valve" text-anchor="middle" y="6" fill="#fff" font-weight="bold" font-size="16"></text>
     </g>
-    <g class="btn" id="btn-valve-up" transform="translate(46,0)">${PLUS}</g>
   </g>
 
-  <text x="${L.pump[0]}" y="${L.pump[1] - 44}" text-anchor="middle" class="lbl" data-i18n="pump"></text>
-  <g transform="${t(L.pump)}">
+  <g transform="${t(L.pump)}"><title data-i18n="pump"></title>
     <circle r="16" fill="#fff" stroke="#5f6368" stroke-width="2"/>
     <g id="impeller">${PUMP_VANES}<circle r="2.5" fill="#fff" stroke="#5f6368"/></g>
   </g>
-  <text id="st-pump" x="${L.pump[0]}" y="${L.pump[1] - 24}" text-anchor="middle" class="val"></text>
+  <!-- pump state as an ON/OFF pill, like the hot water valve -->
+  <g transform="translate(${L.pump[0]},${L.pump[1] - 32})"><title data-i18n="pump"></title>
+    <rect x="-21" y="-11" width="42" height="22" rx="11" id="pump-pill"/>
+    <text id="st-pump" text-anchor="middle" y="5" fill="#fff" font-weight="bold" font-size="14"></text>
+  </g>
   <g class="click" data-entity="supply">
-    <text x="${L.lblSupply[0]}" y="${L.lblSupply[1]}" class="lbl" data-i18n="supply"></text>
-    <text id="val-supply" x="${L.lblSupply[0]}" y="${L.lblSupply[1] + 17}" class="val"></text>
+    <title data-i18n="supply"></title>
+    <text id="val-supply" x="${L.valSupply[0]}" y="${L.valSupply[1]}" class="val"></text>
   </g>
   <g class="click" data-entity="return">
-    <text x="${L.lblReturn[0]}" y="${L.lblReturn[1]}" class="lbl" data-i18n="return"></text>
-    <text id="val-return" x="${L.lblReturn[0]}" y="${L.lblReturn[1] + 17}" class="val"></text>
+    <title data-i18n="return"></title>
+    <text id="val-return" x="${L.valReturn[0]}" y="${L.valReturn[1]}" class="val"></text>
   </g>
 
   <g transform="${t(L.house)}">
@@ -345,13 +349,17 @@ function buildSvg(L) {
     <rect x="316" y="82" width="156" height="138" rx="4" class="box wall" stroke-width="2"/>
     <rect x="320" y="154" width="148" height="62" rx="4" fill="url(#grad-rad)" fill-opacity=".25"/>
     <g fill="url(#grad-rad)">${RAD_FINS}</g>
-    <text x="324" y="100" class="title" data-i18n="house"></text>
+    <!-- consumption = PV + grid (import positive), at the top of the house -->
+    <g id="grp-usage">
+      <path id="usage-icon" d="${MDI_FLASH}" transform="translate(360,92) scale(.65)" fill="#f59e0b"/>
+      <text id="val-usage" x="402" y="106" text-anchor="middle" class="lbl" font-weight="bold"></text>
+    </g>
     <g class="click" data-entity="room">
-      <text id="val-room" x="394" y="140" text-anchor="middle" class="val big22"></text>
+      <text id="val-room" x="394" y="142" text-anchor="middle" class="val big22"></text>
     </g>
   </g>
-  <g id="grp-thermostat" transform="translate(394,246)">
-    <text text-anchor="middle" class="lbl" y="-14" font-size="13" data-i18n="thermostat"></text>
+  <g id="grp-thermostat" transform="translate(394,256)">
+    <path d="${MDI_THERMOSTAT}" transform="translate(-10,-31) scale(.85)" class="mdi-icon"><title data-i18n="thermostat"></title></path>
     <g class="btn" id="btn-sp-down" transform="translate(-56,0)">${MINUS}</g>
     <text id="val-setpoint" class="val click" data-entity="thermostat" text-anchor="middle" y="5"></text>
     <g class="btn" id="btn-sp-up" transform="translate(56,0)">${PLUS}</g>
@@ -408,6 +416,7 @@ const STYLE = `
           animation: flow 1.2s linear infinite; }
   @keyframes flow { to { stroke-dashoffset: -20; } }
   .lbl { fill: var(--secondary-text-color, #5f6368); font-size: 14px; }
+  .mdi-icon { fill: var(--secondary-text-color, #5f6368); }
   .val { fill: var(--primary-text-color, #202124); font-size: 16px; font-weight: bold; }
   .big18 { font-size: 20px; }
   .big28 { font-size: 28px; }
@@ -441,7 +450,7 @@ const STYLE = `
   .outline-stroke { stroke: var(--secondary-text-color, #5f6368); }
   .frame-fill { fill: var(--secondary-text-color, #5f6368); }
   #valve-disc { transform-box: fill-box; transform-origin: center; transition: transform .6s ease; }
-  .vq-neutral { fill: var(--card-background-color, #fff); }
+  #valve-hot, #valve-cold { transition: fill .6s ease; }
   .dot { fill: var(--primary-text-color, #202124); }
   .smoke { fill: var(--secondary-text-color, #5f6368); fill-opacity: .35; }
   .roof { fill: #c2410c; stroke: var(--secondary-text-color, #5f6368); }
@@ -451,6 +460,10 @@ const STYLE = `
   .click { cursor: pointer; }
   .click:hover { opacity: .75; }
   .btn { cursor: pointer; }
+  .track { fill: #9aa0a6; fill-opacity: .35; }
+  .thumb { stroke: var(--card-background-color, #fff); stroke-width: 2; }
+  #grp-valve.settable { cursor: pointer; touch-action: none; }
+  #grp-valve.settable.dragging { cursor: grabbing; }
   .btn circle { fill: var(--card-background-color, #fff); stroke: var(--primary-color, #1a73e8); stroke-width: 1.5; }
   .btn path { stroke: var(--primary-color, #1a73e8); stroke-width: 3.5; stroke-linecap: round; fill: none; }
   .btn:hover circle { fill: var(--primary-color, #1a73e8); fill-opacity: .15; }
@@ -579,8 +592,7 @@ class FurnaceCard extends HTMLElement {
       const id = this._entityFor(el.dataset.entity);
       if (id) this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: id }, bubbles: true, composed: true }));
     }));
-    $("btn-valve-down").addEventListener("click", () => this._stepValve(-1));
-    $("btn-valve-up").addEventListener("click", () => this._stepValve(1));
+    this._bindValveSlider($("grp-valve"), $("valve-track"));
     $("btn-sp-down").addEventListener("click", () => this._stepSetpoint(-1));
     $("btn-sp-up").addEventListener("click", () => this._stepSetpoint(1));
     $("btn-hw-valve").addEventListener("click", () => this._toggleHwValve());
@@ -741,6 +753,12 @@ class FurnaceCard extends HTMLElement {
     $("val-grid").textContent = this._fmtKw(Number.isFinite(grid) ? Math.abs(grid) : NaN);
     $("val-grid").style.fill = active ? (grid < 0 ? "#22c55e" : "#ef4444") : "";
     $("st-grid").textContent = active ? (grid < 0 ? t.grid_export : t.grid_import) : "";
+    // house consumption: what the panels give plus what comes from the grid (export lowers it)
+    $("grp-usage").classList.toggle("hidden", !e.grid);
+    $("val-usage").textContent = this._fmtKw(Number.isFinite(grid) ? Math.max(0, pvTotal + grid) : NaN);
+    // the icon sits just left of the centred value (its width changes with the number)
+    const usageW = e.grid ? $("val-usage").getComputedTextLength() : 0;
+    if (usageW) $("usage-icon").setAttribute("transform", `translate(${(402 - usageW / 2 - 17).toFixed(1)},92) scale(.65)`);
 
     // outdoor: temperature sensor, or the weather entity's temperature; icon from the weather condition
     const wx = this._state("weather");
@@ -764,26 +782,30 @@ class FurnaceCard extends HTMLElement {
     // pump and fire
     $("impeller").classList.toggle("spin", pump);
     $("impeller").setAttribute("fill", pump ? "#1a73e8" : "#9aa0a6");
-    $("st-pump").textContent = pump ? t.running : t.stopped;
+    $("st-pump").textContent = pump ? "ON" : "OFF";
+    $("pump-pill").setAttribute("fill", pump ? "#188038" : "#5f6368");
     const burning = this._burning;
     $("flame").style.display = burning ? "" : "none";
     $("smoke").style.display = burning ? "" : "none";
     $("st-burner").textContent = burning ? t.burning : t.out;
 
     // 4D valve disc. Ports: N boiler supply, E heating supply, S heating return, W boiler return.
-    // 100 %: hot quarter N–E (boiler water to the house), cold quarter S–W (return to the boiler).
+    // 100 %: hot half N–E (boiler water to the house), cold half S–W (return to the boiler).
     //   0 %: turned 90° back: hot N–W (the boiler loops on itself), cold S–E (the house loops on itself).
     const pos = this._pendingValve ?? this._valvePos();
     const open = Number.isFinite(pos) ? Math.min(1, Math.max(0, pos / 100)) : 0.5;
     $("valve-disc").style.transform = `rotate(${(-90 * (1 - open)).toFixed(1)}deg)`;
-    $("vq-hot").setAttribute("fill", pump && Number.isFinite(bs) ? col(bs) : OFF);
-    $("vq-cold").setAttribute("fill", pump && Number.isFinite(ret) ? col(ret) : OFF);
+    $("valve-hot").setAttribute("fill", pump && Number.isFinite(bs) ? col(bs) : OFF);
+    $("valve-cold").setAttribute("fill", pump && Number.isFinite(ret) ? col(ret) : OFF);
     $("grp-valve").classList.toggle("hidden", !e.valve);
     $("val-valve").textContent = Number.isFinite(pos) ? `${Math.round(pos)}%` : "—";
-    $("valve-pill").setAttribute("fill", pos > 0 ? "#188038" : "#5f6368");
-    const valveSettable = ["number", "input_number", "cover", "valve"].includes(this._domain(e.valve));
-    $("btn-valve-down").classList.toggle("hidden", !valveSettable);
-    $("btn-valve-up").classList.toggle("hidden", !valveSettable);
+    const valveCol = pos > 0 ? "#188038" : "#5f6368";
+    $("valve-pill").setAttribute("fill", valveCol);
+    const vf = this._valveFrac(pos);
+    $("valve-thumb").setAttribute("transform", `translate(${(-66 + 132 * vf).toFixed(1)},0)`);
+    $("valve-fill").setAttribute("width", (132 * vf).toFixed(1));
+    $("valve-fill").setAttribute("fill", valveCol);
+    $("grp-valve").classList.toggle("settable", this._valveSettable());
 
     // thermostat
     const sp = this._pendingSp ?? this._setpoint();
@@ -821,24 +843,70 @@ class FurnaceCard extends HTMLElement {
     this._hass.callService(d === "valve" ? "valve" : d, "toggle", { entity_id: id });
   }
 
-  // Quick repeated clicks are sent as one call.
-  _stepValve(dir) {
+  _valveSettable() {
+    return ["number", "input_number", "cover", "valve"].includes(this._domain(this._config.entities.valve));
+  }
+
+  _valveRange() {
     const st = this._state("valve");
-    if (!st) return;
+    const min = Number(st?.attributes.min ?? 0);
+    const max = Number(st?.attributes.max ?? 100);
+    return max > min ? [min, max] : [0, 100];
+  }
+
+  _valveFrac(pos) {
+    const [min, max] = this._valveRange();
+    return Number.isFinite(pos) ? Math.min(1, Math.max(0, (pos - min) / (max - min))) : 0;
+  }
+
+  // Drag the pill or click the track; the position follows the pointer (rounded to valve_step) and is sent on release.
+  // A read-only valve (sensor) opens more-info instead.
+  _bindValveSlider(grp, track) {
+    const at = (ev) => {
+      const r = track.getBoundingClientRect();
+      const [min, max] = this._valveRange();
+      const step = this._config.valve_step || 1;
+      const f = r.width ? Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) : 0;
+      return Math.min(max, Math.max(min, Math.round((min + f * (max - min)) / step) * step));
+    };
+    grp.addEventListener("pointerdown", (ev) => {
+      const id = this._config.entities.valve;
+      if (!id) return;
+      ev.stopPropagation();
+      if (!this._valveSettable()) {
+        this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: id }, bubbles: true, composed: true }));
+        return;
+      }
+      clearTimeout(this._valveTimer);
+      try { grp.setPointerCapture(ev.pointerId); } catch (_) { /* synthetic events have no capture */ }
+      grp.classList.add("dragging");
+      this._pendingValve = at(ev);
+      this._update();
+      const move = (e) => { this._pendingValve = at(e); this._update(); };
+      const up = (e) => {
+        grp.removeEventListener("pointermove", move);
+        grp.removeEventListener("pointerup", up);
+        grp.removeEventListener("pointercancel", up);
+        grp.classList.remove("dragging");
+        this._setValve(e.type === "pointercancel" ? this._pendingValve : at(e));
+      };
+      grp.addEventListener("pointermove", move);
+      grp.addEventListener("pointerup", up);
+      grp.addEventListener("pointercancel", up);
+    });
+  }
+
+  _setValve(v) {
+    const st = this._state("valve");
+    if (!st || !Number.isFinite(v)) return;
     const d = this._domain(st.entity_id);
-    const cur = this._pendingValve ?? this._valvePos();
-    const min = Number(st.attributes.min ?? 0);
-    const max = Number(st.attributes.max ?? 100);
-    const v = Math.min(max, Math.max(min, (Number.isFinite(cur) ? cur : 0) + dir * this._config.valve_step));
     this._pendingValve = v;
     this._update();
+    if (d === "cover") this._hass.callService("cover", "set_cover_position", { entity_id: st.entity_id, position: v });
+    else if (d === "valve") this._hass.callService("valve", "set_valve_position", { entity_id: st.entity_id, position: v });
+    else this._hass.callService(d, "set_value", { entity_id: st.entity_id, value: v });
     clearTimeout(this._valveTimer);
-    this._valveTimer = setTimeout(() => {
-      if (d === "cover") this._hass.callService("cover", "set_cover_position", { entity_id: st.entity_id, position: v });
-      else if (d === "valve") this._hass.callService("valve", "set_valve_position", { entity_id: st.entity_id, position: v });
-      else this._hass.callService(d, "set_value", { entity_id: st.entity_id, value: v });
-      setTimeout(() => { this._pendingValve = undefined; this._update(); }, 1500);
-    }, 700);
+    this._valveTimer = setTimeout(() => { this._pendingValve = undefined; this._update(); }, 1500);
   }
 
   _stepSetpoint(dir) {
