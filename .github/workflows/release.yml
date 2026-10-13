@@ -1,0 +1,37 @@
+# Release on tag: push a tag vX.Y.Z (matching CARD_VERSION in furnace-card.js) and GitHub creates the release with
+# furnace-card.js attached (the asset HACS downloads, see hacs.json).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The tag must match the version the card reports, otherwise HA would show an old number for a new file.
+      - name: Check version
+        run: |
+          VERSION=$(sed -n 's/^const CARD_VERSION = "\(.*\)";/\1/p' furnace-card.js)
+          echo "CARD_VERSION=$VERSION, tag=$GITHUB_REF_NAME"
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ] && [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match CARD_VERSION $VERSION in furnace-card.js"
+            exit 1
+          fi
+
+      # An annotated tag's message becomes the release notes (git tag -a v1.0.1 -m "...").
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          NOTES=$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")
+          gh release create "$GITHUB_REF_NAME" furnace-card.js \
+            --title "Furnace card $GITHUB_REF_NAME" \
+            --notes "${NOTES:-Furnace card $GITHUB_REF_NAME}"

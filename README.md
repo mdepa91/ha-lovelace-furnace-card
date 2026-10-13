@@ -82,3 +82,16 @@ The card is a single file, `furnace-card.js`, with no build step.
 - `test/index.html` renders five scenarios (portrait, dark, minimal English, two landscape) with a mocked `hass`.
   Open `test/index.html?test` to click through the controls; the result (service calls, more-info events) is printed
   at the bottom of the page.
+
+## Release
+
+Bump `CARD_VERSION` in `furnace-card.js`, commit, then push an annotated tag with the same number:
+
+```sh
+git tag -a v1.0.1 -m "What changed"
+git push origin v1.0.1
+```
+
+Both GitLab CI (`.gitlab-ci.yml`) and GitHub Actions (`.github/workflows/release.yml`) check that the tag matches
+`CARD_VERSION` and create the release with `furnace-card.js` attached; the tag message becomes the release notes.
+GitLab needs a runner with the Docker executor. On GitHub the attached file is what HACS downloads.

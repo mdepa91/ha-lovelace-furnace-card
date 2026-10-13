@@ -1,0 +1,38 @@
+# Release on tag: push a tag vX.Y.Z (matching CARD_VERSION in furnace-card.js) and GitLab creates the release
+# with furnace-card.js attached.
+stages:
+  - check
+  - release
+
+# The tag must match the version the card reports, otherwise HA would show an old number for a new file.
+check-version:
+  stage: check
+  image: alpine:3.20
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - VERSION=$(sed -n 's/^const CARD_VERSION = "\(.*\)";/\1/p' furnace-card.js)
+    - echo "CARD_VERSION=$VERSION, tag=$CI_COMMIT_TAG"
+    - |
+      if [ "v$VERSION" != "$CI_COMMIT_TAG" ] && [ "$VERSION" != "$CI_COMMIT_TAG" ]; then
+        echo "Tag $CI_COMMIT_TAG does not match CARD_VERSION $VERSION in furnace-card.js"
+        exit 1
+      fi
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:v0.18.0
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - echo "Creating release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "Furnace card $CI_COMMIT_TAG"
+    # an annotated tag's message becomes the release notes (git tag -a v1.0.1 -m "...")
+    description: "Furnace card $CI_COMMIT_TAG. $CI_COMMIT_TAG_MESSAGE"
+    assets:
+      links:
+        - name: furnace-card.js
+          url: "$CI_PROJECT_URL/-/raw/$CI_COMMIT_TAG/furnace-card.js"
+          link_type: package
