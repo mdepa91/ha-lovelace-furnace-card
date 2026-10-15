@@ -1,20 +1,20 @@
 // Furnace card: a Home Assistant Lovelace card that draws a boiler (CO) with a 4-way mixing valve, the heating pump on
-// the hot side of the valve, the house radiators and the hot water tank (CWU) with its zone valve and electric heater.
+// the hot side of the valve, the underfloor heating in the house and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.3.0";
 
 const I18N = {
   pl: {
     title: "Kotłownia", outdoor: "Zewnętrzna", boiler_supply: "zasilanie kotła", boiler_return: "powrót kotła",
-    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii",
+    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka",
     boiler: "Kocioł CO", burning: "pali się", out: "wygaszony",
     thermostat: "termostat", hotwater: "CWU", hw_valve_1: "zawór", hw_valve_2: "CWU", heater: "grzałka", pv1: "Falownik 1", pv2: "Falownik 2", pv_total: "razem", grid: "Sieć",
     no_flow: "brak przepływu",
   },
   en: {
     title: "Boiler room", outdoor: "Outdoor", boiler_supply: "boiler supply", boiler_return: "boiler return",
-    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery",
+    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer",
     boiler: "Boiler", burning: "burning", out: "out",
     thermostat: "thermostat", hotwater: "DHW", hw_valve_1: "DHW", hw_valve_2: "valve", heater: "heater", pv1: "Inverter 1", pv2: "Inverter 2", pv_total: "total", grid: "Grid",
     no_flow: "no flow",
@@ -36,7 +36,8 @@ const EDITOR_I18N = {
     valve_step: "Krok zaworu 4D (%)", pump: "Pompa CO (puste: z temperatury zasilania kotła)", flue: "Temperatura spalin",
     burner: "Stan kotła (puste: z temperatury zasilania kotła)", burner_states: "Stany kotła oznaczające palenie",
     fan: "Wentylator (%)", battery_soc: "Magazyn energii – naładowanie %", battery_power: "Magazyn energii – moc (+ ładowanie)",
-    battery_invert: "Odwróć kierunek magazynu",
+    battery_invert: "Odwróć kierunek magazynu", appliances: "Odbiorniki w domu", washer: "Pralka", dryer: "Suszarka",
+    appliance_states: "Stany tekstowe oznaczające pracę", appliance_power_on: "Praca od mocy (W)",
   },
   en: {
     title: "Title", layout: "Layout (auto: landscape from 760 px)", language: "Language", entities: "Entities", logic: "Pump and fire (from temperature)", scale: "Colour scale",
@@ -54,16 +55,17 @@ const EDITOR_I18N = {
     pump: "Heating pump (empty: from the boiler supply temperature)", flue: "Flue gas temperature",
     burner: "Boiler state (empty: from the boiler supply temperature)", burner_states: "Boiler states that mean burning",
     fan: "Fan (%)", battery_soc: "Battery – charge %", battery_power: "Battery – power (+ charging)",
-    battery_invert: "Invert battery direction",
+    battery_invert: "Invert battery direction", appliances: "Home appliances", washer: "Washer", dryer: "Dryer",
+    appliance_states: "Text states that mean running", appliance_power_on: "Running from power (W)",
   },
 };
 
 const ENTITY_KEYS = ["grid", "weather", "pv1", "pv2", "boiler_supply", "boiler_return", "supply", "return", "hotwater", "hotwater_valve", "heater",
-  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power"];
+  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power", "washer", "dryer"];
 
 const DEFAULTS = {
   pump_on: 40, pump_hysteresis: 2, burning_on: 45, burning_hysteresis: 2, min_temp: 20, max_temp: 80, valve_step: 5,
-  pv1_max: 10, pv2_max: 10,
+  pv1_max: 10, pv2_max: 10, appliance_power_on: 5,
 };
 
 const ON_STATES = ["on", "open", "opening"];
@@ -89,7 +91,37 @@ function tcol(t, min, max) {
 
 const PUMP_VANES = [0, 90, 180, 270]
   .map((r) => `<path d="M0,0 C5,-2 8,-7 8,-12 C3,-10 1,-5 0,0 Z" transform="rotate(${r})"/>`).join("");
-const RAD_FINS = Array.from({ length: 9 }, (_, i) => `<rect x="${326 + 16 * i}" y="160" width="12" height="50" rx="4"/>`).join("");
+// Underfloor heating coil: in from the supply on the left wall (y 170), meanders right in vertical loops, out to the
+// return on the right wall (y 200).
+const FLOOR_COIL = (() => {
+  let d = "M316,170 H320 Q324,170 324,174 V206";
+  let x = 324;
+  for (let i = 1; i < 16; i++) {
+    const down = i % 2 === 0;
+    d += down ? ` A4,4 0 0 1 ${x + 8},184 V206` : ` A4,4 0 0 0 ${x + 8},206 V184`;
+    x += 8;
+  }
+  // 16 columns end going up at x 444; the last one runs down to the outlet
+  return `${d} A4,4 0 0 1 ${x + 8},184 V196 Q${x + 8},200 ${x + 12},200 H472`;
+})();
+// Wavy ring around the dryer drum (12 waves, radius 7.5 ± 0.7 around the door centre 15,22); it turns while drying.
+const WAVY_RING = Array.from({ length: 97 }, (_, i) => {
+  const a = (i / 96) * 2 * Math.PI, r = 7.5 + 0.7 * Math.sin(12 * a);
+  return `${i ? "L" : "M"}${(15 + r * Math.cos(a)).toFixed(2)},${(22 + r * Math.sin(a)).toFixed(2)}`;
+}).join("") + "Z";
+const APPLIANCE = (key, y) => `
+    <g id="grp-${key}" class="appl click" data-entity="${key}" transform="translate(436,${y})"><title id="title-${key}"></title>
+      <rect width="30" height="36" rx="3" class="box" stroke-width="1.5"/>
+      <path d="M0,8 H30" class="outline-stroke" stroke-width="1"/>
+      <circle cx="6" cy="4.5" r="1.8" class="appl-led"/>
+      <rect x="15" y="3" width="11" height="3" rx="1" class="frame-fill" fill-opacity=".5"/>
+      <circle cx="15" cy="22" r="10" class="appl-door appl-${key}" stroke-width="1.5"/>
+      ${key === "washer"
+        // water in the lower half of the door
+        ? `<path d="M7,23 q2,-1.6 4,0 t4,0 t4,0 t4,0 A8,8 0 0 1 7,23 Z" class="appl-mark water"/>`
+        // wavy drum ring, turns while drying
+        : `<path d="${WAVY_RING}" class="appl-ring"/>`}
+    </g>`;
 const SUN_RAYS = Array.from({ length: 8 }, (_, i) => {
   const a = (i * Math.PI) / 4;
   const p = (r) => `${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a)).toFixed(1)}`;
@@ -147,6 +179,8 @@ const MDI_THERMOSTAT = "M16.95,16.95L14.83,14.83C15.55,14.1 16,13.1 16,12C16,11.
 const MDI_FLASH = "M7,2V13H10V22L17,10H13L17,2H7Z";
 const MDI_FAN = "M12,11A1,1 0 0,0 11,12A1,1 0 0,0 12,13A1,1 0 0,0 13,12A1,1 0 0,0 12,11M12.5,2C17,2 17.11,5.57 14.75,6.75C13.76,7.24 13.32,8.29 13.13,9.22C13.61,9.42 14.03,9.73 14.35,10.13C18.05,8.13 22.03,8.92 22.03,12.5C22.03,17 18.46,17.1 17.28,14.73C16.78,13.74 15.72,13.3 14.79,13.11C14.59,13.59 14.28,14 13.88,14.34C15.87,18.03 15.08,22 11.5,22C7,22 6.91,18.42 9.27,17.24C10.25,16.75 10.69,15.71 10.89,14.79C10.4,14.59 9.97,14.27 9.65,13.87C5.96,15.85 2,15.07 2,11.5C2,7 5.56,6.89 6.74,9.26C7.24,10.25 8.29,10.68 9.22,10.87C9.41,10.39 9.73,9.97 10.14,9.65C8.15,5.96 8.94,2 12.5,2Z";
 // states of a text boiler entity that mean "burning" when burner_states is not set
+const APPLIANCE_STATES = ["on", "true", "run", "running", "wash", "washing", "rinse", "rinsing", "spin", "spinning", "dry",
+  "drying", "pranie", "płukanie", "wirowanie", "suszenie", "praca", "w toku"];
 const BURNER_STATES = ["on", "true", "praca", "pali się", "burning", "heating", "work", "running"];
 
 // Coil inside the horizontal tank: vertical loops over the whole length, in on the left, out on the right.
@@ -194,7 +228,7 @@ function buildSvg(L) {
   return `
 <svg viewBox="${L.viewBox}" font-size="13">
   <defs>
-    <linearGradient id="grad-rad" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="grad-rad" x1="0" y1="0" x2="1" y2="0">
       <stop id="grad-rad-in" offset="0"/><stop id="grad-rad-out" offset="1"/>
     </linearGradient>
     <linearGradient id="grad-tank" x1="0" y1="0" x2="1" y2="0">
@@ -222,11 +256,11 @@ function buildSvg(L) {
   <path id="pipe-hw-return" class="pipe" d="${P.hw_return}"/>
   <path id="pipe-return" class="pipe" d="${P.ret}"/>
   <g id="flows">
-    <path class="flow" d="${P.boiler_supply}"/>
+    <path id="flow-boiler-supply" class="flow" d="${P.boiler_supply}"/>
     <path class="flow" d="${P.supply}"/>
     <path id="flow-hw" class="flow" d="${P.hw_supply}"/>
     <path class="flow" d="${P.ret}"/>
-    <path class="flow" d="${P.boiler_return}"/>
+    <path id="flow-boiler-return" class="flow" d="${P.boiler_return}"/>
   </g>
 
   <g id="boiler" transform="${t(L.boiler)}">
@@ -234,9 +268,9 @@ function buildSvg(L) {
     <g id="smoke" class="smoke">
       <circle cx="104" cy="302" r="3"/><circle cx="111" cy="295" r="4"/><circle cx="120" cy="287" r="5"/>
     </g>
-    <!-- flue gas temperature, above the smoke -->
+    <!-- flue gas temperature, next to the smoke -->
     <g id="grp-flue" class="click" data-entity="flue"><title data-i18n="flue"></title>
-      <text id="val-flue" x="122" y="277" text-anchor="middle" class="val flue"></text>
+      <text id="val-flue" x="128" y="293" class="val flue"></text>
     </g>
     <rect x="6" y="330" width="108" height="180" rx="6" class="box steel" stroke-width="2"/>
     <rect x="14" y="340" width="92" height="42" rx="4" class="outline panel"/>
@@ -380,8 +414,12 @@ function buildSvg(L) {
     <circle cx="394" cy="62" r="9" class="glass"/>
     <path d="M394,53 V71 M385,62 H403" class="outline-stroke" stroke-width="1.2"/>
     <rect x="316" y="82" width="156" height="138" rx="4" class="box wall" stroke-width="2"/>
-    <rect x="320" y="154" width="148" height="62" rx="4" fill="url(#grad-rad)" fill-opacity=".25"/>
-    <g fill="url(#grad-rad)">${RAD_FINS}</g>
+    <!-- underfloor heating: floor slab and the coil, coloured from the supply (left) to the return (right) -->
+    <rect x="320" y="176" width="148" height="40" rx="4" fill="url(#grad-rad)" fill-opacity=".22"/>
+    <path id="floor-coil" d="${FLOOR_COIL}" fill="none" stroke="url(#grad-rad)" stroke-width="4" stroke-linejoin="round"/>
+    <!-- appliances at the right wall: the door lights up while running, the water sloshes, the dryer ring turns -->
+    ${APPLIANCE("washer", 132 - 42)}
+    ${APPLIANCE("dryer", 132)}
     <!-- consumption = PV + grid (import positive), at the top of the house -->
     <g id="grp-usage">
       <path id="usage-icon" d="${MDI_FLASH}" transform="translate(360,92) scale(.65)" fill="#f59e0b"/>
@@ -489,6 +527,19 @@ const STYLE = `
   .smoke { fill: var(--secondary-text-color, #5f6368); fill-opacity: .35; }
   .batt-frame { fill: var(--card-background-color, #fff); stroke: var(--secondary-text-color, #5f6368); }
   #fan-icon.spin { animation-timing-function: linear; }
+  .appl-door { fill: var(--card-background-color, #fff); stroke: var(--secondary-text-color, #5f6368); transition: fill .4s; }
+  .appl-mark { fill: var(--secondary-text-color, #5f6368); fill-opacity: .55; }
+  .appl.on .appl-mark { fill: #1d4ed8; fill-opacity: .85; }
+  .appl-mark.water { transform-origin: 15px 22px; }
+  .appl-ring { fill: none; stroke: var(--secondary-text-color, #5f6368); stroke-opacity: .55; stroke-width: 1.2;
+               transform-origin: 15px 22px; }
+  .appl.on .appl-ring { stroke: #dc2626; stroke-opacity: 1; animation: spin 2s linear infinite; }
+  .appl.on .appl-mark.water { animation: slosh 1.4s ease-in-out infinite alternate; }
+  @keyframes slosh { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+  .appl-led { fill: var(--secondary-text-color, #5f6368); fill-opacity: .4; }
+  .appl.on .appl-washer { fill: #93c5fd; }
+  .appl.on .appl-dryer { fill: #fcd34d; }
+  .appl.on .appl-led { fill: #22c55e; fill-opacity: 1; }
   .val.flue { fill: var(--secondary-text-color, #5f6368); font-size: 14px; }
   .roof { fill: #c2410c; stroke: var(--secondary-text-color, #5f6368); }
   .roof-dark { fill: #9a3412; stroke: var(--secondary-text-color, #5f6368); stroke-width: 1.5; }
@@ -509,7 +560,7 @@ const STYLE = `
   @keyframes spin { to { transform: rotate(360deg); } }
   .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .9s ease-in-out infinite alternate; }
   @keyframes flick { from { transform: scale(1, .92); } to { transform: scale(.94, 1.06); } }
-  @media (prefers-reduced-motion: reduce) { .spin, .flame, .flow, .grid-flow, .beams path { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .spin, .flame, .appl-mark, .appl-ring, .flow, .grid-flow, .beams path { animation: none; } }
 `;
 
 // <ha-form> is lazy-loaded by HA; opening a built-in card editor that uses it makes sure it is defined.
@@ -668,6 +719,21 @@ class FurnaceCard extends HTMLElement {
     return st ? ON_STATES.includes(st.state) : undefined;
   }
 
+  // An appliance runs when its entity is on, its power (W, or kW) is above appliance_power_on, or its text state is
+  // one of appliance_states.
+  _running(key) {
+    const st = this._state(key);
+    if (!st) return false;
+    const s = String(st.state).trim().toLowerCase();
+    if (/^-?\d+(\.\d+)?$/.test(s)) {
+      const unit = st.attributes.unit_of_measurement;
+      const w = parseFloat(s) * (unit === "kW" ? 1000 : 1);
+      return w > (this._config.appliance_power_on ?? DEFAULTS.appliance_power_on);
+    }
+    const states = [].concat(this._config.appliance_states ?? APPLIANCE_STATES).map((x) => String(x).trim().toLowerCase());
+    return ON_STATES.includes(s) || states.includes(s);
+  }
+
   _fmt(v, digits = 1) {
     if (!Number.isFinite(v)) return "—";
     return `${new Intl.NumberFormat(this._lang, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v)} °C`;
@@ -824,7 +890,19 @@ class FurnaceCard extends HTMLElement {
       ? Math.max(0, pvTotal + grid - (Number.isFinite(batt) ? batt : 0)) : NaN);
     // the icon sits just left of the centred value (its width changes with the number)
     const usageW = e.grid ? $("val-usage").getComputedTextLength() : 0;
-    if (usageW) $("usage-icon").setAttribute("transform", `translate(${(402 - usageW / 2 - 17).toFixed(1)},92) scale(.65)`);
+    // appliances at the right wall push the consumption and the room temperature to the left
+    const appl = !!(e.washer || e.dryer);
+    const cx = appl ? 376 : 394;
+    $("val-usage").setAttribute("x", cx + 8);
+    $("val-room").setAttribute("x", cx);
+    // (before the card is laid out the width reads 0: assume a typical "3,62 kW")
+    $("usage-icon").setAttribute("transform", `translate(${(cx + 8 - (usageW || 60) / 2 - 17).toFixed(1)},92) scale(.65)`);
+    for (const key of ["washer", "dryer"]) {
+      const st = this._state(key);
+      $(`grp-${key}`).classList.toggle("hidden", !e[key]);
+      $(`grp-${key}`).classList.toggle("on", this._running(key));
+      $(`title-${key}`).textContent = `${t[key]}: ${st ? this._hass.formatEntityState?.(st) ?? st.state : "—"}`;
+    }
 
     // outdoor: temperature sensor, or the weather entity's temperature; icon from the weather condition
     const wx = this._state("weather");
@@ -881,6 +959,11 @@ class FurnaceCard extends HTMLElement {
     $("valve-disc").style.transform = `rotate(${(-90 * (1 - open)).toFixed(1)}deg)`;
     $("valve-hot").setAttribute("fill", pump && Number.isFinite(bs) ? col(bs) : OFF);
     $("valve-cold").setAttribute("fill", pump && Number.isFinite(ret) ? col(ret) : OFF);
+    // the pump drives the boiler loop only through the open part of the valve: the dots there slow down as it
+    // closes and creep at 0 % (the boiler water still circulates a little); the heating side keeps the pump speed
+    const boilerFlow = e.valve && Number.isFinite(pos) ? 0.08 + 0.92 * open : 1;
+    for (const id of ["flow-boiler-supply", "flow-boiler-return"])
+      $(id).style.animationDuration = `${(1.2 / boilerFlow).toFixed(2)}s`;
     $("grp-valve").classList.toggle("hidden", !e.valve);
     $("val-valve").textContent = Number.isFinite(pos) ? `${Math.round(pos)}%` : "—";
     const valveCol = pos > 0 ? "#188038" : "#5f6368";
@@ -1055,6 +1138,10 @@ class FurnaceCardEditor extends HTMLElement {
         { name: "pv1_name", selector: { text: {} } }, num("pv1_max", 0.1, 1000, 0.1),
         { name: "pv2_name", selector: { text: {} } }, num("pv2_max", 0.1, 1000, 0.1),
       ] },
+      { name: "appliances", type: "expandable", flatten: true, schema: [
+        { name: "entities", type: "grid", schema: [{ name: "washer", selector: { entity: {} } }, { name: "dryer", selector: { entity: {} } }] },
+        { name: "appliance_states", selector: { text: { multiple: true } } }, num("appliance_power_on", 0, 5000, 1),
+      ] },
       {
         name: "logic", type: "expandable", flatten: true, schema: [
           num("pump_on", 0, 100, 0.5), num("pump_hysteresis", 0, 20, 0.5),
@@ -1103,7 +1190,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "furnace-card",
   name: "Furnace / boiler room",
-  description: "Boiler with a 4-way valve, heating pump, radiators and hot water tank; pipes coloured by temperature.",
+  description: "Boiler with a 4-way valve, heating pump, underfloor heating and hot water tank; pipes coloured by temperature.",
   preview: false,
 });
 console.info(`%c FURNACE-CARD %c ${CARD_VERSION} `, "background:#c2410c;color:#fff", "");

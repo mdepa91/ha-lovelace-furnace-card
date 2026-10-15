@@ -28,6 +28,7 @@
     thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
     weather: "weather.dom", grid: "sensor.siec_moc", pump: "binary_sensor.pompa_co", flue: "sensor.spaliny",
     burner: "sensor.piec_stan", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
+    washer: "sensor.pralka_moc", dryer: "sensor.suszarka_stan",
   };
   function hass(v, language = "pl") {
     const s = (id, state, attributes = {}) => [id, { entity_id: id, state: String(state), attributes }];
@@ -43,6 +44,7 @@
         s(ENT.pump, v.pump ?? (v.bs >= 40 ? "on" : "off")), s(ENT.flue, v.flue ?? (v.bs >= 45 ? 165 : 48)),
         s(ENT.burner, v.burner ?? (v.bs >= 45 ? "Praca" : "Postój")), s(ENT.fan, v.fan ?? (v.bs >= 45 ? 65 : 0), { unit_of_measurement: "%" }),
         s(ENT.battery_soc, v.soc ?? 85, { unit_of_measurement: "%" }), s(ENT.battery_power, v.batt ?? 1200, { unit_of_measurement: "W" }),
+        s(ENT.washer, v.washer ?? 350, { unit_of_measurement: "W" }), s(ENT.dryer, v.dryer ?? "Wyłączona"),
         s(ENT.weather, v.wx ?? "partlycloudy", { temperature: v.out }), s("sun.sun", v.night ? "below_horizon" : "above_horizon"),
         s(ENT.thermostat, "heat", { temperature: 21.5, current_temperature: 21.0, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
       ]),
@@ -60,7 +62,7 @@
   mount("pl-heating", { entities: ENT },
     hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35, pv1: 2450, pv2: 1.12 }));
   mount("pl-idle-dark", { entities: ENT, title: "Piec", pv1_name: "Dach S", pv2_name: "Garaż" },
-    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, wx: "rainy", grid: -3400, burner: "Wygaszanie", soc: 15, batt: -800 }));
+    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, wx: "rainy", grid: -3400, burner: "Wygaszanie", soc: 15, batt: -800, washer: 1.5, dryer: "Suszenie" }));
   mount("pl-wide", { entities: ENT },
     hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35, pv1: 2450, pv2: 1.12 }));
   mount("pl-wide-dark", { entities: ENT },
@@ -88,14 +90,21 @@
     click("val-flue");
     click("val-fan");
     click("val-batt-soc");
+    click("grp-dryer");
     root.querySelector('[data-entity="heater"]').dispatchEvent(new MouseEvent("click"));
     const idle = document.querySelector("#pl-idle-dark furnace-card").shadowRoot;
     const res = { shown, pumpIdle: idle.getElementById("st-pump").textContent,
       spinIdle: idle.getElementById("impeller").classList.contains("spin"),
       pumpEntityOn: document.querySelector("#pl-wide-dark furnace-card").shadowRoot.getElementById("st-pump").textContent,
+      // boiler loop dots: slower as the 4-way valve closes (45 % after the drag, 0 % in pl-wide-dark), CO side unchanged
+      boilerFlow: [root.getElementById("flow-boiler-supply").style.animationDuration,
+        document.querySelector("#pl-wide-dark furnace-card").shadowRoot.getElementById("flow-boiler-return").style.animationDuration],
+      // washer at 350 W runs, dryer "Wyłączona" does not; idle: washer 1.5 W stopped, dryer "Suszenie" runs
+      appliances: [root, idle].map((r) => ["grp-washer", "grp-dryer"].map((id) => r.getElementById(id).classList.contains("on"))),
+      washerTitle: root.getElementById("title-washer").textContent,
       burnerText: root.getElementById("st-burner").textContent, usage: root.getElementById("val-usage").textContent,
       idleBurner: idle.getElementById("st-burner").textContent, idleFlame: idle.getElementById("flame").style.display,
-      minimalHidden: ["grp-valve", "grp-thermostat", "grp-hw-valve", "grp-heater", "grp-outdoor", "grp-flue", "grp-fan", "grp-battery"].map((id) =>
+      minimalHidden: ["grp-valve", "grp-thermostat", "grp-hw-valve", "grp-heater", "grp-outdoor", "grp-flue", "grp-fan", "grp-battery", "grp-washer", "grp-dryer"].map((id) =>
         document.querySelector("#en-minimal furnace-card").shadowRoot.getElementById(id).classList.contains("hidden")) };
     setTimeout(() => {
       res.calls = window.calls;

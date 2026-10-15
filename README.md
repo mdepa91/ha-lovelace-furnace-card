@@ -1,15 +1,17 @@
 # Furnace card
 
 A Home Assistant Lovelace card that draws a boiler room: the boiler (CO), the 4-way mixing valve, the heating pump on
-the hot side of the valve, the house radiators and the hot water tank (CWU) with its zone valve and electric heater.
+the hot side of the valve, the underfloor heating in the house (with a washer and a dryer) and the hot water tank (CWU) with its zone valve and electric heater.
 
 - **Pipe colours follow the temperature** (20 °C blue → 80 °C red, configurable). Pipes with no flow turn grey.
+- **Flow dots** run while the pump works. On the boiler side they slow down as the 4-way valve closes (only the
+  open part of the valve takes water from the boiler) and creep at 0 %; the heating side keeps the pump speed.
 - **Heating pump:** from its own entity (`binary_sensor`, `switch`, `input_boolean`) when set, otherwise from the
   boiler supply temperature: it runs from `pump_on` °C with a hysteresis. Shown as an ON/OFF pill above the pump.
 - **Boiler state:** any entity, also a text one (e.g. "Praca", "Wygaszanie"). Its state is shown on the boiler
   panel and the fire burns while it is one of `burner_states`. Without it the fire follows the boiler supply
   temperature (`burning_on` °C with a hysteresis).
-- **Flue gas temperature** (optional) above the smoke from the boiler.
+- **Flue gas temperature** (optional) next to the smoke from the boiler.
 - **Combustion fan** (optional, %) in the ash door: the fan spins faster with a higher value.
 - **Battery storage** (optional) between the pole and the house: charge level with %, the power (▲ charging,
   ▼ discharging) and a cable to the house with dashes running to the battery (charging) or to the house.
@@ -30,6 +32,10 @@ the hot side of the valve, the house radiators and the hot water tank (CWU) with
   flips the direction.
 - **House consumption** at the top of the house: PV total + grid − battery charging (export lowers it), shown when
   `grid` is set.
+- **Underfloor heating** in the house: a coil coloured from the heating supply (left) to the return (right).
+- **Appliances** (optional): a washer (water in the door) and a dryer (a wavy drum ring) at the right wall of the house;
+  while running the door lights up, the water sloshes and the dryer ring turns red. Any entity: on/off, a power sensor (running above `appliance_power_on` W) or a text state
+  (running when it is one of `appliance_states`). Hover shows the state, click opens more-info.
 - **Weather icon** follows the condition of a `weather` entity (sun, moon at night, clouds, rain, snow, storm, fog,
   wind).
 - **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional.
@@ -69,13 +75,18 @@ entities:
   pv2: sensor.inverter_2_power                      # optional
   grid: sensor.grid_power                           # optional, W or kW, + = import, - = export
   pump: binary_sensor.heating_pump                  # optional; without it the pump follows pump_on
-  flue: sensor.flue_gas_temperature                 # optional, shown above the smoke
+  flue: sensor.flue_gas_temperature                 # optional, shown next to the smoke
   burner: sensor.boiler_state                       # optional, any state (text too); fire from burner_states
   fan: sensor.boiler_fan                            # optional, % (sensor, number or fan with percentage)
   battery_soc: sensor.battery_soc                   # optional, %
   battery_power: sensor.battery_power               # optional, W or kW, + = charging
+  washer: sensor.washer_power                       # optional, any state: on/off, power or text
+  dryer: sensor.dryer_state                         # optional
 burner_states: [Praca, Rozpalanie]  # boiler states meaning "burning", case-insensitive
                                     # (default: on, praca, pali się, burning, heating, work, running)
+appliance_states: [Pranie, Suszenie]  # text states meaning "running", case-insensitive (default: on, run,
+                                      # running, washing, drying, spin, pranie, płukanie, wirowanie, suszenie, praca, ...)
+appliance_power_on: 5    # W above which a power sensor counts as running (default 5)
 battery_invert: false    # true when the battery sensor reports discharging as positive
 pv1_name: Falownik 1     # label of the first inverter (default "Falownik 1" / "Inverter 1")
 pv2_name: Falownik 2
