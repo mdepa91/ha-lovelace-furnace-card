@@ -4,8 +4,15 @@ A Home Assistant Lovelace card that draws a boiler room: the boiler (CO), the 4-
 the hot side of the valve, the house radiators and the hot water tank (CWU) with its zone valve and electric heater.
 
 - **Pipe colours follow the temperature** (20 °C blue → 80 °C red, configurable). Pipes with no flow turn grey.
-- **Heating pump and fire without entities:** both follow the boiler supply temperature. The pump runs from
-  `pump_on` °C, the fire is shown from `burning_on` °C, each with a hysteresis.
+- **Heating pump:** from its own entity (`binary_sensor`, `switch`, `input_boolean`) when set, otherwise from the
+  boiler supply temperature: it runs from `pump_on` °C with a hysteresis. Shown as an ON/OFF pill above the pump.
+- **Boiler state:** any entity, also a text one (e.g. "Praca", "Wygaszanie"). Its state is shown on the boiler
+  panel and the fire burns while it is one of `burner_states`. Without it the fire follows the boiler supply
+  temperature (`burning_on` °C with a hysteresis).
+- **Flue gas temperature** (optional) above the smoke from the boiler.
+- **Combustion fan** (optional, %) in the ash door: the fan spins faster with a higher value.
+- **Battery storage** (optional) between the pole and the house: charge level with %, the power (▲ charging,
+  ▼ discharging) and a cable to the house with dashes running to the battery (charging) or to the house.
 - **4-way valve** drawn as a disc split in half that turns with the valve position: the hot half joins the boiler
   supply with the heating supply when open and with the boiler return when closed. The hot half has the boiler supply
   colour, the other the heating return colour. A slider under the valve sets the position (drag the pill or click
@@ -18,9 +25,11 @@ the hot side of the valve, the house radiators and the hot water tank (CWU) with
 - **Photovoltaics:** panels on the roof, the sun and two horizontal bars with the power of two inverters (each with
   its own label) and the total below. The sun beams move towards the panels, faster with more power. W, kW and MW
   sensors are all shown in kW.
-- **Grid:** a power pole with a line to the house. Dashes run to the house while importing (red) and back to the pole
-  while exporting (green), faster with more power. `grid_invert: true` flips the direction.
-- **House consumption** at the top of the house: PV total + grid (export lowers it), shown when `grid` is set.
+- **Grid:** a small power pole with a line to the house and the power in kW (no label). Dashes run to the house
+  while importing (red) and back to the pole while exporting (green), faster with more power. `grid_invert: true`
+  flips the direction.
+- **House consumption** at the top of the house: PV total + grid − battery charging (export lowers it), shown when
+  `grid` is set.
 - **Weather icon** follows the condition of a `weather` entity (sun, moon at night, clouds, rain, snow, storm, fog,
   wind).
 - **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional.
@@ -59,14 +68,23 @@ entities:
   pv1: sensor.inverter_1_power                      # optional, W or kW
   pv2: sensor.inverter_2_power                      # optional
   grid: sensor.grid_power                           # optional, W or kW, + = import, - = export
+  pump: binary_sensor.heating_pump                  # optional; without it the pump follows pump_on
+  flue: sensor.flue_gas_temperature                 # optional, shown above the smoke
+  burner: sensor.boiler_state                       # optional, any state (text too); fire from burner_states
+  fan: sensor.boiler_fan                            # optional, % (sensor, number or fan with percentage)
+  battery_soc: sensor.battery_soc                   # optional, %
+  battery_power: sensor.battery_power               # optional, W or kW, + = charging
+burner_states: [Praca, Rozpalanie]  # boiler states meaning "burning", case-insensitive
+                                    # (default: on, praca, pali się, burning, heating, work, running)
+battery_invert: false    # true when the battery sensor reports discharging as positive
 pv1_name: Falownik 1     # label of the first inverter (default "Falownik 1" / "Inverter 1")
 pv2_name: Falownik 2
 grid_invert: false       # true when the grid sensor reports export as positive
 pv1_max: 10              # kW at which the inverter bar is full (default 10)
 pv2_max: 10
-pump_on: 40              # °C boiler supply at which the heating pump starts (default 40)
+pump_on: 40              # °C boiler supply at which the heating pump starts, when no pump entity (default 40)
 pump_hysteresis: 2       # pump stops below pump_on - hysteresis (default 2)
-burning_on: 45           # °C boiler supply from which the boiler is shown as burning (default 45)
+burning_on: 45           # °C boiler supply from which the boiler is shown as burning, when no burner entity (default 45)
 burning_hysteresis: 2    # default 2
 min_temp: 20             # colour scale (default 20..80 °C)
 max_temp: 80

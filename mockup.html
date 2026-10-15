@@ -44,6 +44,12 @@
     <label>Zawór 4D <input type="range" min="0" max="100" step="1" data-k="valve"><output></output></label>
     <label>Falownik 1 <input type="range" min="0" max="10" step="0.05" data-k="pv1"><output></output></label>
     <label>Falownik 2 <input type="range" min="0" max="10" step="0.05" data-k="pv2"><output></output></label>
+    <label>Spaliny <input type="range" min="20" max="300" step="1" data-k="flue"><output></output></label>
+    <label>Pompa CO <select id="pump"><option value="">z temperatury</option><option value="on">encja: ON</option><option value="off">encja: OFF</option></select></label>
+    <label>Wentylator % <input type="range" min="0" max="100" step="1" data-k="fan"><output></output></label>
+    <label>Stan kotła <select data-k="burner"><option>Praca</option><option>Rozpalanie</option><option>Wygaszanie</option><option>Postój</option></select></label>
+    <label>Magazyn % <input type="range" min="0" max="100" step="1" data-k="soc"><output></output></label>
+    <label>Magazyn kW (+ ład.) <input type="range" min="-5" max="5" step="0.05" data-k="batt"><output></output></label>
     <label>Sieć (+ pobór) <input type="range" min="-8" max="8" step="0.05" data-k="grid"><output></output></label>
     <label>Pogoda <select data-k="weather"><option>sunny</option><option>clear-night</option><option>partlycloudy</option><option>cloudy</option><option>rainy</option><option>pouring</option><option>snowy</option><option>snowy-rainy</option><option>hail</option><option>lightning</option><option>lightning-rainy</option><option>fog</option><option>windy</option><option>windy-variant</option></select></label>
     <label><input type="checkbox" data-k="hotwater_valve"> Zawór CWU otwarty</label>
@@ -51,7 +57,7 @@
     <label><input type="checkbox" id="dark"> Ciemny motyw</label>
     <label><input type="checkbox" id="wide"> Szeroka karta (układ poziomy)</label>
   </div>
-  <p style="font-size:12px;opacity:.7">Pompa CO pracuje od 40 °C zasilania kotła, „pali się” od 45 °C (histereza 2 °C).</p>
+  <p style="font-size:12px;opacity:.7">Bez encji pompy pompa CO pracuje od 40 °C zasilania kotła, ogień pokazuje się, gdy stan kotła to „Praca” lub „Rozpalanie” (burner_states).</p>
 </div>
 <div id="toast"></div>
 
@@ -61,10 +67,13 @@ const ENT = {
   return: "sensor.co_powrot", hotwater: "sensor.cwu", hotwater_valve: "switch.zawor_cwu",
   heater: "binary_sensor.grzalka_cwu", room: "sensor.dom", outdoor: "sensor.zewnetrzna", valve: "number.zawor_4d",
   thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
-  weather: "weather.dom", grid: "sensor.siec_moc",
+  weather: "weather.dom", grid: "sensor.siec_moc", flue: "sensor.spaliny",
+  burner: "sensor.piec_stan", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
 };
+const PUMP = "binary_sensor.pompa_co";
 const S = { boiler_supply: 62.4, boiler_return: 45.6, supply: 48.5, return: 38.9, hotwater: 52, room: 21.2,
-  outdoor: -3, valve: 35, hotwater_valve: true, heater: false, setpoint: 21.5, pv1: 2.4, pv2: 1.1, weather: "partlycloudy", grid: 1.2 };
+  outdoor: -3, valve: 35, hotwater_valve: true, heater: false, setpoint: 21.5, pv1: 2.4, pv2: 1.1, weather: "partlycloudy", grid: 1.2,
+  flue: 165, pump: "", fan: 65, burner: "Praca", soc: 85, batt: 1.2 };
 
 const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.style.opacity = 1;
   clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1800); };
@@ -80,7 +89,9 @@ function hass() {
       st(ENT.heater, onoff(S.heater)), st(ENT.room, S.room), st(ENT.outdoor, S.outdoor),
       st(ENT.valve, S.valve, { min: 0, max: 100, step: 1 }),
       st(ENT.pv1, S.pv1, { unit_of_measurement: "kW" }), st(ENT.pv2, S.pv2, { unit_of_measurement: "kW" }),
-      st(ENT.grid, S.grid, { unit_of_measurement: "kW" }),
+      st(ENT.grid, S.grid, { unit_of_measurement: "kW" }), st(ENT.flue, S.flue), st(PUMP, S.pump || "off"),
+      st(ENT.fan, S.fan, { unit_of_measurement: "%" }), st(ENT.burner, S.burner),
+      st(ENT.battery_soc, S.soc, { unit_of_measurement: "%" }), st(ENT.battery_power, S.batt, { unit_of_measurement: "kW" }),
       st(ENT.weather, S.weather, { temperature: S.outdoor }),
       st(ENT.thermostat, "heat", { temperature: S.setpoint, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
     ]),
@@ -95,7 +106,8 @@ function hass() {
 }
 
 const card = document.createElement("furnace-card");
-card.setConfig({ entities: ENT });
+const CFG = { burner_states: ["Praca", "Rozpalanie"] };
+card.setConfig({ ...CFG, entities: ENT });
 card.addEventListener("hass-more-info", (e) => toast(`more-info: ${e.detail.entityId}`));
 document.getElementById("card").appendChild(card);
 
@@ -111,6 +123,12 @@ document.querySelectorAll("#demo [data-k]").forEach((el) => el.addEventListener(
   S[el.dataset.k] = el.type === "checkbox" ? el.checked : el.tagName === "SELECT" ? el.value : +el.value;
   refresh();
 }));
+// "z temperatury" = no pump entity in the config, otherwise the card follows binary_sensor.pompa_co
+document.getElementById("pump").addEventListener("change", (e) => {
+  S.pump = e.target.value;
+  card.setConfig({ ...CFG, entities: S.pump ? { ...ENT, pump: PUMP } : ENT });
+  refresh();
+});
 document.getElementById("dark").addEventListener("change", (e) => {
   document.documentElement.dataset.theme = e.target.checked ? "dark" : "light";
 });
