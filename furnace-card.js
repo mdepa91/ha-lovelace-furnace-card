@@ -2,19 +2,19 @@
 // the hot side of the valve, the underfloor heating in the house and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.5.0";
 
 const I18N = {
   pl: {
     title: "Kotłownia", outdoor: "Zewnętrzna", boiler_supply: "zasilanie kotła", boiler_return: "powrót kotła",
-    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka", done: "zakończone {m} min temu",
+    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka", ev: "Ładowanie auta", done: "zakończone {m} min temu",
     boiler: "Kocioł CO", burning: "pali się", out: "wygaszony",
     thermostat: "termostat", hotwater: "CWU", hw_valve_1: "zawór", hw_valve_2: "CWU", heater: "grzałka", pv1: "Falownik 1", pv2: "Falownik 2", pv_total: "razem", grid: "Sieć",
     no_flow: "brak przepływu",
   },
   en: {
     title: "Boiler room", outdoor: "Outdoor", boiler_supply: "boiler supply", boiler_return: "boiler return",
-    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer", done: "finished {m} min ago",
+    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer", ev: "EV charging", done: "finished {m} min ago",
     boiler: "Boiler", burning: "burning", out: "out",
     thermostat: "thermostat", hotwater: "DHW", hw_valve_1: "DHW", hw_valve_2: "valve", heater: "heater", pv1: "Inverter 1", pv2: "Inverter 2", pv_total: "total", grid: "Grid",
     no_flow: "no flow",
@@ -37,6 +37,7 @@ const EDITOR_I18N = {
     burner: "Stan kotła (puste: z temperatury zasilania kotła)", burner_states: "Stany kotła oznaczające palenie",
     fan: "Wentylator (%)", battery_soc: "Magazyn energii – naładowanie %", battery_power: "Magazyn energii – moc (+ ładowanie)",
     battery_invert: "Odwróć kierunek magazynu", appliances: "Odbiorniki w domu", washer: "Pralka", dryer: "Suszarka",
+    ev_power: "Ładowanie auta – moc",
     appliance_states: "Stany tekstowe oznaczające pracę", appliance_power_on: "Praca od mocy (W)",
     appliance_done_minutes: "Znacznik zakończenia przez (min)",
   },
@@ -57,13 +58,14 @@ const EDITOR_I18N = {
     burner: "Boiler state (empty: from the boiler supply temperature)", burner_states: "Boiler states that mean burning",
     fan: "Fan (%)", battery_soc: "Battery – charge %", battery_power: "Battery – power (+ charging)",
     battery_invert: "Invert battery direction", appliances: "Home appliances", washer: "Washer", dryer: "Dryer",
+    ev_power: "EV charging – power",
     appliance_states: "Text states that mean running", appliance_power_on: "Running from power (W)",
     appliance_done_minutes: "Show the finished mark for (min)",
   },
 };
 
 const ENTITY_KEYS = ["grid", "weather", "pv1", "pv2", "boiler_supply", "boiler_return", "supply", "return", "hotwater", "hotwater_valve", "heater",
-  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power", "washer", "dryer"];
+  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power"];
 
 const DEFAULTS = {
   pump_on: 40, pump_hysteresis: 2, burning_on: 45, burning_hysteresis: 2, min_temp: 20, max_temp: 80, valve_step: 5,
@@ -214,7 +216,7 @@ const LAYOUTS = {
     },
     valBoilerSupply: [115, 101], valBoilerReturn: [125, 159], valve: [190, 170],
     valvePill: [190, 220], pump: [264, 170], valSupply: [213, 201], valReturn: [202, 425],
-    hwValve: [300, 288, -90], hwPill: [240, 288], hwLbl: [240, 314], legend: [184, 494],
+    hwValve: [300, 288, -90], hwPill: [240, 288], hwLbl: [240, 314], legend: [184, 494], ev: [0, -8],
   },
   landscape: {
     viewBox: "0 -104 680 560", boiler: [14, -110], house: [174, -20], tank: [174, -20],
@@ -224,7 +226,7 @@ const LAYOUTS = {
     },
     valBoilerSupply: [167, 81], valBoilerReturn: [177, 139], valve: [280, 150],
     valvePill: [280, 192], pump: [380, 150], valSupply: [303, 141], valReturn: [294, 397],
-    hwValve: [450, 268, -90], hwPill: [390, 268], hwLbl: [390, 294], legend: [330, 444],
+    hwValve: [450, 268, -90], hwPill: [390, 268], hwLbl: [390, 294], legend: [330, 444], ev: [10, -22],
   },
 };
 
@@ -252,6 +254,26 @@ function buildSvg(L) {
     <g class="click" data-entity="outdoor">
       <text x="64" y="20" class="lbl" data-i18n="outdoor"></text>
       <text id="val-outdoor" x="64" y="48" class="val big28"></text>
+    </g>
+  </g>
+
+  <!-- EV charging under the outdoor temperature: wallbox, cable with dashes to the car while charging (faster with
+       more power), the power below; a check mark after charging stops -->
+  <g id="grp-ev" class="click" data-entity="ev_power" transform="${t(L.ev)}"><title id="title-ev"></title>
+    <rect x="5" y="22" width="13" height="24" rx="2.5" class="box" stroke-width="1.5"/>
+    <circle cx="11.5" cy="28" r="1.8" class="appl-led" id="ev-led"/>
+    <path d="M11.5,46 V53 Q11.5,61 19,59 Q27,57 30,50" class="wire" fill="none"/>
+    <path id="ev-flow" d="M11.5,46 V53 Q11.5,61 19,59 Q27,57 30,50" class="grid-flow idle" fill="none"/>
+    <path d="M30,58 V48 Q30,42 36,41 L49,40 L58,31 Q61,28 66,28 H86 Q90,28 93,31 L101,40 Q110,41 112,47 V58 Z"
+          class="ev-body" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M53,40 L60,32.5 H74 V40 Z M78,32.5 H87 Q89.5,32.5 91,34.5 L96,40 H78 Z" class="glass"/>
+    <path id="ev-bolt" d="${MDI_FLASH}" transform="translate(64,40) scale(.6)" fill="#22c55e"/>
+    <circle cx="45" cy="58" r="6.5" class="ev-wheel"/><circle cx="97" cy="58" r="6.5" class="ev-wheel"/>
+    <circle cx="45" cy="58" r="2.2" class="off-fill"/><circle cx="97" cy="58" r="2.2" class="off-fill"/>
+    <text id="val-ev" x="71" y="81" text-anchor="middle" class="val" font-size="15"></text>
+    <g id="done-ev" class="hidden" transform="translate(108,30)">
+      <circle r="6.5" fill="#188038" class="done-badge"/>
+      <path d="M-3.2,0.2 L-1,2.6 L3.4,-2.2" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
   </g>
 
@@ -542,6 +564,9 @@ const STYLE = `
   .appl.on .appl-ring { stroke: #dc2626; stroke-opacity: 1; animation: spin 2s linear infinite; }
   .appl.on .appl-mark.water { animation: slosh 1.4s ease-in-out infinite alternate; }
   @keyframes slosh { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+  .ev-body { fill: color-mix(in srgb, #1a73e8 16%, var(--card-background-color, #fff)); stroke: var(--secondary-text-color, #5f6368); }
+  .ev-wheel { fill: #374151; stroke: var(--card-background-color, #fff); stroke-width: 1.5; }
+  #grp-ev.on #ev-led { fill: #22c55e; fill-opacity: 1; }
   .done-badge { stroke: var(--card-background-color, #fff); stroke-width: 1.5; }
   .appl-led { fill: var(--secondary-text-color, #5f6368); fill-opacity: .4; }
   .appl.on .appl-washer { fill: #93c5fd; }
@@ -927,6 +952,23 @@ class FurnaceCard extends HTMLElement {
     $("val-room").setAttribute("x", cx);
     // (before the card is laid out the width reads 0: assume a typical "3,62 kW")
     $("usage-icon").setAttribute("transform", `translate(${(cx + 8 - (usageW || 60) / 2 - 17).toFixed(1)},92) scale(.65)`);
+    // EV charging: charging above 50 W; dashes to the car, faster with more power
+    const evSt = this._state("ev_power"), ev = this._kw("ev_power"), charging = ev >= 0.05;
+    $("grp-ev").classList.toggle("hidden", !e.ev_power);
+    $("grp-ev").classList.toggle("on", charging);
+    $("val-ev").textContent = this._fmtKw(Number.isFinite(ev) ? Math.max(0, ev) : NaN);
+    $("val-ev").style.fill = charging ? "#22c55e" : "";
+    $("ev-bolt").style.display = charging ? "" : "none";
+    const evFlow = $("ev-flow");
+    evFlow.setAttribute("class", `grid-flow${charging ? "" : " idle"}`);
+    evFlow.style.stroke = "#22c55e";
+    evFlow.style.animationDuration = charging ? `${Math.min(4, Math.max(0.3, 3 / ev)).toFixed(2)}s` : "";
+    const evStopped = evSt ? this._stoppedAt(evSt, charging) : NaN;
+    const evAgo = (Date.now() - evStopped) / 60000;
+    const evDone = evAgo >= 0 && evAgo < (c.appliance_done_minutes ?? DEFAULTS.appliance_done_minutes);
+    $("done-ev").classList.toggle("hidden", !evDone);
+    $("title-ev").textContent = `${t.ev}: ${$("val-ev").textContent}` + (evDone ? ` · ${t.done.replace("{m}", Math.round(evAgo))}` : "");
+
     for (const key of ["washer", "dryer"]) {
       const st = this._state(key);
       $(`grp-${key}`).classList.toggle("hidden", !e[key]);
@@ -1176,7 +1218,8 @@ class FurnaceCardEditor extends HTMLElement {
         { name: "pv2_name", selector: { text: {} } }, num("pv2_max", 0.1, 1000, 0.1),
       ] },
       { name: "appliances", type: "expandable", flatten: true, schema: [
-        { name: "entities", type: "grid", schema: [{ name: "washer", selector: { entity: {} } }, { name: "dryer", selector: { entity: {} } }] },
+        { name: "entities", type: "grid", schema: [{ name: "washer", selector: { entity: {} } }, { name: "dryer", selector: { entity: {} } },
+          { name: "ev_power", selector: { entity: { domain: "sensor" } } }] },
         { name: "appliance_states", selector: { text: { multiple: true } } }, num("appliance_power_on", 0, 5000, 1),
         num("appliance_done_minutes", 0, 1440, 5),
       ] },

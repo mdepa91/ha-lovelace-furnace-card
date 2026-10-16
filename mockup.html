@@ -52,6 +52,7 @@
     <label>Magazyn kW (+ ład.) <input type="range" min="-5" max="5" step="0.05" data-k="batt"><output></output></label>
     <label>Pralka W <input type="range" min="0" max="2200" step="10" data-k="washer"><output></output></label>
     <label>Suszarka <select data-k="dryer"><option>Wyłączona</option><option>Suszenie</option><option>Zakończono</option></select></label>
+    <label>Auto kW <input type="range" min="0" max="11" step="0.1" data-k="ev"><output></output></label>
     <label>Sieć (+ pobór) <input type="range" min="-8" max="8" step="0.05" data-k="grid"><output></output></label>
     <label>Pogoda <select data-k="weather"><option>sunny</option><option>clear-night</option><option>partlycloudy</option><option>cloudy</option><option>rainy</option><option>pouring</option><option>snowy</option><option>snowy-rainy</option><option>hail</option><option>lightning</option><option>lightning-rainy</option><option>fog</option><option>windy</option><option>windy-variant</option></select></label>
     <label><input type="checkbox" data-k="hotwater_valve"> Zawór CWU otwarty</label>
@@ -59,7 +60,7 @@
     <label><input type="checkbox" id="dark"> Ciemny motyw</label>
     <label><input type="checkbox" id="wide"> Szeroka karta (układ poziomy)</label>
   </div>
-  <p style="font-size:12px;opacity:.7">Bez encji pompy pompa CO pracuje od 40 °C zasilania kotła, ogień pokazuje się, gdy stan kotła to „Praca” lub „Rozpalanie” (burner_states). Pralka pracuje od 5 W (appliance_power_on), suszarka przy stanie „Suszenie” (appliance_states). Po zatrzymaniu (Suszenie → Wyłączona, pralka → 0 W) przez godzinę widać zielony znacznik.</p>
+  <p style="font-size:12px;opacity:.7">Bez encji pompy pompa CO pracuje od 40 °C zasilania kotła, ogień pokazuje się, gdy stan kotła to „Praca” lub „Rozpalanie” (burner_states). Pralka pracuje od 5 W (appliance_power_on), suszarka przy stanie „Suszenie” (appliance_states). Po zatrzymaniu (Suszenie → Wyłączona, pralka → 0 W, auto → 0 kW) przez godzinę widać zielony znacznik.</p>
 </div>
 <div id="toast"></div>
 
@@ -71,12 +72,12 @@ const ENT = {
   thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
   weather: "weather.dom", grid: "sensor.siec_moc", flue: "sensor.spaliny",
   burner: "sensor.piec_stan", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
-  washer: "sensor.pralka_moc", dryer: "sensor.suszarka_stan",
+  washer: "sensor.pralka_moc", dryer: "sensor.suszarka_stan", ev_power: "sensor.ladowarka_moc",
 };
 const PUMP = "binary_sensor.pompa_co";
 const S = { boiler_supply: 62.4, boiler_return: 45.6, supply: 48.5, return: 38.9, hotwater: 52, room: 21.2,
   outdoor: -3, valve: 35, hotwater_valve: true, heater: false, setpoint: 21.5, pv1: 2.4, pv2: 1.1, weather: "partlycloudy", grid: 1.2,
-  flue: 165, pump: "", fan: 65, burner: "Praca", soc: 85, batt: 1.2, washer: 350, dryer: "Wyłączona" };
+  flue: 165, pump: "", fan: 65, burner: "Praca", soc: 85, batt: 1.2, washer: 350, dryer: "Wyłączona", ev: 7.2 };
 
 const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.style.opacity = 1;
   clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1800); };
@@ -95,6 +96,7 @@ function hass() {
       st(ENT.grid, S.grid, { unit_of_measurement: "kW" }), st(ENT.flue, S.flue), st(PUMP, S.pump || "off"),
       st(ENT.fan, S.fan, { unit_of_measurement: "%" }), st(ENT.burner, S.burner),
       st(ENT.battery_soc, S.soc, { unit_of_measurement: "%" }), st(ENT.battery_power, S.batt, { unit_of_measurement: "kW" }),
+      st(ENT.ev_power, S.ev, { unit_of_measurement: "kW" }),
       st(ENT.washer, S.washer, { unit_of_measurement: "W" }), st(ENT.dryer, S.dryer),
       st(ENT.weather, S.weather, { temperature: S.outdoor }),
       st(ENT.thermostat, "heat", { temperature: S.setpoint, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),

@@ -39,6 +39,10 @@ the hot side of the valve, the underfloor heating in the house (with a washer an
   green check mark shows for `appliance_done_minutes` (default 60). The card remembers a stop it saw (also after a
   reload, in the browser); otherwise an on/off or text entity counts as stopped at its last change, a power sensor
   only when the card saw it running.
+- **EV charging** (optional, only a power sensor is needed): a car with a wallbox under the outdoor temperature. While
+  charging (from 50 W) the bolt and the wallbox light up and dashes run along the cable, faster with more power; the
+  power is shown below. A green check mark after charging stops, like the appliances. The house consumption is not
+  changed: a charger behind the meter is already in the grid and PV numbers.
 - **Weather icon** follows the condition of a `weather` entity (sun, moon at night, clouds, rain, snow, storm, fog,
   wind).
 - **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional.
@@ -85,12 +89,13 @@ entities:
   battery_power: sensor.battery_power               # optional, W or kW, + = charging
   washer: sensor.washer_power                       # optional, any state: on/off, power or text
   dryer: sensor.dryer_state                         # optional
+  ev_power: sensor.ev_charger_power                 # optional, W or kW
 burner_states: [Praca, Rozpalanie]  # boiler states meaning "burning", case-insensitive
                                     # (default: on, praca, pali się, burning, heating, work, running)
 appliance_states: [Pranie, Suszenie]  # text states meaning "running", case-insensitive (default: on, run,
                                       # running, washing, drying, spin, pranie, płukanie, wirowanie, suszenie, praca, ...)
 appliance_power_on: 5    # W above which a power sensor counts as running (default 5)
-appliance_done_minutes: 60  # how long the green "finished" check mark shows after a stop (default 60)
+appliance_done_minutes: 60  # how long the green "finished" check mark shows after a stop, also for the car (default 60)
 battery_invert: false    # true when the battery sensor reports discharging as positive
 pv1_name: Falownik 1     # label of the first inverter (default "Falownik 1" / "Inverter 1")
 pv2_name: Falownik 2
