@@ -44,7 +44,8 @@
         s(ENT.pump, v.pump ?? (v.bs >= 40 ? "on" : "off")), s(ENT.flue, v.flue ?? (v.bs >= 45 ? 165 : 48)),
         s(ENT.burner, v.burner ?? (v.bs >= 45 ? "Praca" : "Postój")), s(ENT.fan, v.fan ?? (v.bs >= 45 ? 65 : 0), { unit_of_measurement: "%" }),
         s(ENT.battery_soc, v.soc ?? 85, { unit_of_measurement: "%" }), s(ENT.battery_power, v.batt ?? 1200, { unit_of_measurement: "W" }),
-        s(ENT.washer, v.washer ?? 350, { unit_of_measurement: "W" }), s(ENT.dryer, v.dryer ?? "Wyłączona"),
+        s(ENT.washer, v.washer ?? 350, { unit_of_measurement: "W" }), [ENT.dryer, { entity_id: ENT.dryer, state: v.dryer ?? "Wyłączona", attributes: {},
+          last_changed: new Date(Date.now() - (v.dryerAgo ?? 20) * 60000).toISOString() }],
         s(ENT.weather, v.wx ?? "partlycloudy", { temperature: v.out }), s("sun.sun", v.night ? "below_horizon" : "above_horizon"),
         s(ENT.thermostat, "heat", { temperature: 21.5, current_temperature: 21.0, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
       ]),
@@ -102,10 +103,18 @@
       // washer at 350 W runs, dryer "Wyłączona" does not; idle: washer 1.5 W stopped, dryer "Suszenie" runs
       appliances: [root, idle].map((r) => ["grp-washer", "grp-dryer"].map((id) => r.getElementById(id).classList.contains("on"))),
       washerTitle: root.getElementById("title-washer").textContent,
+      // dryer off for 20 min: finished mark; idle washer at 1.5 W (a power sensor, no stop seen): none
+      done: [root.getElementById("done-dryer").classList.contains("hidden"), idle.getElementById("done-washer").classList.contains("hidden")],
+      dryerTitle: root.getElementById("title-dryer").textContent,
       burnerText: root.getElementById("st-burner").textContent, usage: root.getElementById("val-usage").textContent,
       idleBurner: idle.getElementById("st-burner").textContent, idleFlame: idle.getElementById("flame").style.display,
       minimalHidden: ["grp-valve", "grp-thermostat", "grp-hw-valve", "grp-heater", "grp-outdoor", "grp-flue", "grp-fan", "grp-battery", "grp-washer", "grp-dryer"].map((id) =>
         document.querySelector("#en-minimal furnace-card").shadowRoot.getElementById(id).classList.contains("hidden")) };
+    // the idle washer stops (350 W -> 0 W) and the idle dryer has been off for 2 h: mark on the washer only
+    const idleCard = document.querySelector("#pl-idle-dark furnace-card");
+    idleCard.hass = hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, washer: 350, dryer: "Wyłączona", dryerAgo: 120 });
+    idleCard.hass = hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, washer: 0, dryer: "Wyłączona", dryerAgo: 120 });
+    res.doneAfterStop = ["done-washer", "done-dryer"].map((id) => !idle.getElementById(id).classList.contains("hidden"));
     setTimeout(() => {
       res.calls = window.calls;
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = JSON.stringify(res);

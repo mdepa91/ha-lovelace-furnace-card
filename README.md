@@ -35,7 +35,10 @@ the hot side of the valve, the underfloor heating in the house (with a washer an
 - **Underfloor heating** in the house: a coil coloured from the heating supply (left) to the return (right).
 - **Appliances** (optional): a washer (water in the door) and a dryer (a wavy drum ring) at the right wall of the house;
   while running the door lights up, the water sloshes and the dryer ring turns red. Any entity: on/off, a power sensor (running above `appliance_power_on` W) or a text state
-  (running when it is one of `appliance_states`). Hover shows the state, click opens more-info.
+  (running when it is one of `appliance_states`). Hover shows the state, click opens more-info. After it stops, a
+  green check mark shows for `appliance_done_minutes` (default 60). The card remembers a stop it saw (also after a
+  reload, in the browser); otherwise an on/off or text entity counts as stopped at its last change, a power sensor
+  only when the card saw it running.
 - **Weather icon** follows the condition of a `weather` entity (sun, moon at night, clouds, rain, snow, storm, fog,
   wind).
 - **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional.
@@ -87,6 +90,7 @@ burner_states: [Praca, Rozpalanie]  # boiler states meaning "burning", case-inse
 appliance_states: [Pranie, Suszenie]  # text states meaning "running", case-insensitive (default: on, run,
                                       # running, washing, drying, spin, pranie, płukanie, wirowanie, suszenie, praca, ...)
 appliance_power_on: 5    # W above which a power sensor counts as running (default 5)
+appliance_done_minutes: 60  # how long the green "finished" check mark shows after a stop (default 60)
 battery_invert: false    # true when the battery sensor reports discharging as positive
 pv1_name: Falownik 1     # label of the first inverter (default "Falownik 1" / "Inverter 1")
 pv2_name: Falownik 2

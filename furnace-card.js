@@ -2,19 +2,19 @@
 // the hot side of the valve, the underfloor heating in the house and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.3.0";
+const CARD_VERSION = "1.4.0";
 
 const I18N = {
   pl: {
     title: "Kotłownia", outdoor: "Zewnętrzna", boiler_supply: "zasilanie kotła", boiler_return: "powrót kotła",
-    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka",
+    supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka", done: "zakończone {m} min temu",
     boiler: "Kocioł CO", burning: "pali się", out: "wygaszony",
     thermostat: "termostat", hotwater: "CWU", hw_valve_1: "zawór", hw_valve_2: "CWU", heater: "grzałka", pv1: "Falownik 1", pv2: "Falownik 2", pv_total: "razem", grid: "Sieć",
     no_flow: "brak przepływu",
   },
   en: {
     title: "Boiler room", outdoor: "Outdoor", boiler_supply: "boiler supply", boiler_return: "boiler return",
-    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer",
+    supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer", done: "finished {m} min ago",
     boiler: "Boiler", burning: "burning", out: "out",
     thermostat: "thermostat", hotwater: "DHW", hw_valve_1: "DHW", hw_valve_2: "valve", heater: "heater", pv1: "Inverter 1", pv2: "Inverter 2", pv_total: "total", grid: "Grid",
     no_flow: "no flow",
@@ -38,6 +38,7 @@ const EDITOR_I18N = {
     fan: "Wentylator (%)", battery_soc: "Magazyn energii – naładowanie %", battery_power: "Magazyn energii – moc (+ ładowanie)",
     battery_invert: "Odwróć kierunek magazynu", appliances: "Odbiorniki w domu", washer: "Pralka", dryer: "Suszarka",
     appliance_states: "Stany tekstowe oznaczające pracę", appliance_power_on: "Praca od mocy (W)",
+    appliance_done_minutes: "Znacznik zakończenia przez (min)",
   },
   en: {
     title: "Title", layout: "Layout (auto: landscape from 760 px)", language: "Language", entities: "Entities", logic: "Pump and fire (from temperature)", scale: "Colour scale",
@@ -57,6 +58,7 @@ const EDITOR_I18N = {
     fan: "Fan (%)", battery_soc: "Battery – charge %", battery_power: "Battery – power (+ charging)",
     battery_invert: "Invert battery direction", appliances: "Home appliances", washer: "Washer", dryer: "Dryer",
     appliance_states: "Text states that mean running", appliance_power_on: "Running from power (W)",
+    appliance_done_minutes: "Show the finished mark for (min)",
   },
 };
 
@@ -65,7 +67,7 @@ const ENTITY_KEYS = ["grid", "weather", "pv1", "pv2", "boiler_supply", "boiler_r
 
 const DEFAULTS = {
   pump_on: 40, pump_hysteresis: 2, burning_on: 45, burning_hysteresis: 2, min_temp: 20, max_temp: 80, valve_step: 5,
-  pv1_max: 10, pv2_max: 10, appliance_power_on: 5,
+  pv1_max: 10, pv2_max: 10, appliance_power_on: 5, appliance_done_minutes: 60,
 };
 
 const ON_STATES = ["on", "open", "opening"];
@@ -116,6 +118,10 @@ const APPLIANCE = (key, y) => `
       <circle cx="6" cy="4.5" r="1.8" class="appl-led"/>
       <rect x="15" y="3" width="11" height="3" rx="1" class="frame-fill" fill-opacity=".5"/>
       <circle cx="15" cy="22" r="10" class="appl-door appl-${key}" stroke-width="1.5"/>
+      <g id="done-${key}" class="hidden" transform="translate(29,3)">
+        <circle r="6.5" fill="#188038" class="done-badge"/>
+        <path d="M-3.2,0.2 L-1,2.6 L3.4,-2.2" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
       ${key === "washer"
         // water in the lower half of the door
         ? `<path d="M7,23 q2,-1.6 4,0 t4,0 t4,0 t4,0 A8,8 0 0 1 7,23 Z" class="appl-mark water"/>`
@@ -536,6 +542,7 @@ const STYLE = `
   .appl.on .appl-ring { stroke: #dc2626; stroke-opacity: 1; animation: spin 2s linear infinite; }
   .appl.on .appl-mark.water { animation: slosh 1.4s ease-in-out infinite alternate; }
   @keyframes slosh { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+  .done-badge { stroke: var(--card-background-color, #fff); stroke-width: 1.5; }
   .appl-led { fill: var(--secondary-text-color, #5f6368); fill-opacity: .4; }
   .appl.on .appl-washer { fill: #93c5fd; }
   .appl.on .appl-dryer { fill: #fcd34d; }
@@ -734,6 +741,29 @@ class FurnaceCard extends HTMLElement {
     return ON_STATES.includes(s) || states.includes(s);
   }
 
+  // When the appliance stopped (ms), or NaN. A stop seen by this card is remembered in localStorage, so it survives a
+  // reload. Without one, an on/off or text entity that is not running counts as stopped at its last change (it most
+  // likely changed from running); a power sensor does not, its value changes all the time.
+  _stoppedAt(st, running) {
+    const id = st.entity_id, mem = (this._applRunning ||= {}), storeKey = `furnace-card:stopped:${id}`;
+    const was = mem[id];
+    mem[id] = running;
+    if (running) {
+      try { localStorage.removeItem(storeKey); } catch (_) { /* storage blocked */ }
+      return NaN;
+    }
+    if (was === true) {
+      const at = Date.parse(st.last_changed) || Date.now();
+      try { localStorage.setItem(storeKey, String(at)); } catch (_) { /* storage blocked */ }
+      return at;
+    }
+    let stored = NaN;
+    try { stored = Number(localStorage.getItem(storeKey) || NaN); } catch (_) { /* storage blocked */ }
+    if (Number.isFinite(stored)) return stored;
+    if (/^-?\d+(\.\d+)?$/.test(st.state) || ["unavailable", "unknown"].includes(st.state)) return NaN;
+    return Date.parse(st.last_changed);
+  }
+
   _fmt(v, digits = 1) {
     if (!Number.isFinite(v)) return "—";
     return `${new Intl.NumberFormat(this._lang, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v)} °C`;
@@ -900,8 +930,15 @@ class FurnaceCard extends HTMLElement {
     for (const key of ["washer", "dryer"]) {
       const st = this._state(key);
       $(`grp-${key}`).classList.toggle("hidden", !e[key]);
-      $(`grp-${key}`).classList.toggle("on", this._running(key));
-      $(`title-${key}`).textContent = `${t[key]}: ${st ? this._hass.formatEntityState?.(st) ?? st.state : "—"}`;
+      const running = this._running(key);
+      $(`grp-${key}`).classList.toggle("on", running);
+      // green check mark for appliance_done_minutes after the appliance stopped
+      const stopped = st ? this._stoppedAt(st, running) : NaN;
+      const ago = (Date.now() - stopped) / 60000;
+      const done = ago >= 0 && ago < (c.appliance_done_minutes ?? DEFAULTS.appliance_done_minutes);
+      $(`done-${key}`).classList.toggle("hidden", !done);
+      $(`title-${key}`).textContent = `${t[key]}: ${st ? this._hass.formatEntityState?.(st) ?? st.state : "—"}`
+        + (done ? ` · ${t.done.replace("{m}", Math.round(ago))}` : "");
     }
 
     // outdoor: temperature sensor, or the weather entity's temperature; icon from the weather condition
@@ -1141,6 +1178,7 @@ class FurnaceCardEditor extends HTMLElement {
       { name: "appliances", type: "expandable", flatten: true, schema: [
         { name: "entities", type: "grid", schema: [{ name: "washer", selector: { entity: {} } }, { name: "dryer", selector: { entity: {} } }] },
         { name: "appliance_states", selector: { text: { multiple: true } } }, num("appliance_power_on", 0, 5000, 1),
+        num("appliance_done_minutes", 0, 1440, 5),
       ] },
       {
         name: "logic", type: "expandable", flatten: true, schema: [
