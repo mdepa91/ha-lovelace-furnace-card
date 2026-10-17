@@ -30,8 +30,8 @@ the hot side of the valve, the underfloor heating in the house (with a washer an
 - **Grid:** a small power pole with a line to the house and the power in kW (no label). Dashes run to the house
   while importing (red) and back to the pole while exporting (green), faster with more power. `grid_invert: true`
   flips the direction.
-- **House consumption** at the top of the house: PV total + grid − battery charging (export lowers it), shown when
-  `grid` is set.
+- **House consumption** at the top of the house: from its own `consumption` sensor when set (click opens more-info),
+  otherwise PV total + grid − battery charging (export lowers it), shown when `grid` is set.
 - **Underfloor heating** in the house: a coil coloured from the heating supply (left) to the return (right).
 - **Appliances** (optional): a washer (water in the door) and a dryer (a wavy drum ring) at the right wall of the house;
   while running the door lights up, the water sloshes and the dryer ring turns red. Any entity: on/off, a power sensor (running above `appliance_power_on` W) or a text state
@@ -81,6 +81,7 @@ entities:
   pv1: sensor.inverter_1_power                      # optional, W or kW
   pv2: sensor.inverter_2_power                      # optional
   grid: sensor.grid_power                           # optional, W or kW, + = import, - = export
+  consumption: sensor.house_power                   # optional, W or kW; without it: PV + grid - battery charging
   pump: binary_sensor.heating_pump                  # optional; without it the pump follows pump_on
   flue: sensor.flue_gas_temperature                 # optional, shown next to the smoke
   burner: sensor.boiler_state                       # optional, any state (text too); fire from burner_states

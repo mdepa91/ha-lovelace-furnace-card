@@ -2,7 +2,7 @@
 // the hot side of the valve, the underfloor heating in the house and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.5.0";
+const CARD_VERSION = "1.6.0";
 
 const I18N = {
   pl: {
@@ -37,7 +37,7 @@ const EDITOR_I18N = {
     burner: "Stan kotła (puste: z temperatury zasilania kotła)", burner_states: "Stany kotła oznaczające palenie",
     fan: "Wentylator (%)", battery_soc: "Magazyn energii – naładowanie %", battery_power: "Magazyn energii – moc (+ ładowanie)",
     battery_invert: "Odwróć kierunek magazynu", appliances: "Odbiorniki w domu", washer: "Pralka", dryer: "Suszarka",
-    ev_power: "Ładowanie auta – moc",
+    ev_power: "Ładowanie auta – moc", consumption: "Zużycie domu – moc (puste: PV + sieć − ładowanie magazynu)",
     appliance_states: "Stany tekstowe oznaczające pracę", appliance_power_on: "Praca od mocy (W)",
     appliance_done_minutes: "Znacznik zakończenia przez (min)",
   },
@@ -58,14 +58,14 @@ const EDITOR_I18N = {
     burner: "Boiler state (empty: from the boiler supply temperature)", burner_states: "Boiler states that mean burning",
     fan: "Fan (%)", battery_soc: "Battery – charge %", battery_power: "Battery – power (+ charging)",
     battery_invert: "Invert battery direction", appliances: "Home appliances", washer: "Washer", dryer: "Dryer",
-    ev_power: "EV charging – power",
+    ev_power: "EV charging – power", consumption: "House consumption – power (empty: PV + grid − battery charging)",
     appliance_states: "Text states that mean running", appliance_power_on: "Running from power (W)",
     appliance_done_minutes: "Show the finished mark for (min)",
   },
 };
 
 const ENTITY_KEYS = ["grid", "weather", "pv1", "pv2", "boiler_supply", "boiler_return", "supply", "return", "hotwater", "hotwater_valve", "heater",
-  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power"];
+  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power", "consumption"];
 
 const DEFAULTS = {
   pump_on: 40, pump_hysteresis: 2, burning_on: 45, burning_hysteresis: 2, min_temp: 20, max_temp: 80, valve_step: 5,
@@ -448,8 +448,8 @@ function buildSvg(L) {
     <!-- appliances at the right wall: the door lights up while running, the water sloshes, the dryer ring turns -->
     ${APPLIANCE("washer", 132 - 42)}
     ${APPLIANCE("dryer", 132)}
-    <!-- consumption = PV + grid (import positive), at the top of the house -->
-    <g id="grp-usage">
+    <!-- consumption from its own sensor, or PV + grid (import positive) - battery charging, at the top of the house -->
+    <g id="grp-usage" data-entity="consumption">
       <path id="usage-icon" d="${MDI_FLASH}" transform="translate(360,92) scale(.65)" fill="#f59e0b"/>
       <text id="val-usage" x="402" y="106" text-anchor="middle" class="lbl" font-weight="bold"></text>
     </g>
@@ -919,8 +919,9 @@ class FurnaceCard extends HTMLElement {
     flowEl.style.animationDuration = active ? `${Math.min(4, Math.max(0.25, 1.5 / Math.abs(grid))).toFixed(2)}s` : "";
     $("val-grid").textContent = this._fmtKw(Number.isFinite(grid) ? Math.abs(grid) : NaN);
     $("val-grid").style.fill = active ? (grid < 0 ? "#22c55e" : "#ef4444") : "";
-    // house consumption: what the panels give plus what comes from the grid (export lowers it)
-    $("grp-usage").classList.toggle("hidden", !e.grid);
+    // house consumption: its own sensor, or what the panels give plus what comes from the grid (export lowers it)
+    $("grp-usage").classList.toggle("hidden", !e.grid && !e.consumption);
+    $("grp-usage").classList.toggle("click", !!e.consumption);
     // battery: + = charging (battery_invert flips it); charging takes power away from the house
     let batt = this._kw("battery_power");
     if (c.battery_invert) batt = -batt;
@@ -941,10 +942,10 @@ class FurnaceCard extends HTMLElement {
     bFlow.setAttribute("class", `grid-flow${battActive ? (batt > 0 ? " export" : "") : " idle"}`);
     bFlow.style.stroke = batt > 0 ? "#22c55e" : "#f59e0b";
     bFlow.style.animationDuration = battActive ? `${Math.min(4, Math.max(0.25, 1.5 / Math.abs(batt))).toFixed(2)}s` : "";
-    $("val-usage").textContent = this._fmtKw(Number.isFinite(grid)
+    $("val-usage").textContent = this._fmtKw(e.consumption ? this._kw("consumption") : Number.isFinite(grid)
       ? Math.max(0, pvTotal + grid - (Number.isFinite(batt) ? batt : 0)) : NaN);
     // the icon sits just left of the centred value (its width changes with the number)
-    const usageW = e.grid ? $("val-usage").getComputedTextLength() : 0;
+    const usageW = e.grid || e.consumption ? $("val-usage").getComputedTextLength() : 0;
     // appliances at the right wall push the consumption and the room temperature to the left
     const appl = !!(e.washer || e.dryer);
     const cx = appl ? 376 : 394;
@@ -1207,7 +1208,7 @@ class FurnaceCardEditor extends HTMLElement {
           ent("hotwater", "sensor"), ent("hotwater_valve", ["switch", "binary_sensor", "input_boolean", "valve"]),
           ent("heater", ["binary_sensor", "switch", "input_boolean"]), ent("room", "sensor"), ent("outdoor", "sensor"),
           ent("valve", ["number", "input_number", "sensor", "cover", "valve"]),
-          ent("thermostat", ["climate", "number", "input_number"]), ent("weather", "weather"), ent("grid", "sensor"), ent("pv1", "sensor"), ent("pv2", "sensor"),
+          ent("thermostat", ["climate", "number", "input_number"]), ent("weather", "weather"), ent("grid", "sensor"), ent("consumption", "sensor"), ent("pv1", "sensor"), ent("pv2", "sensor"),
           ent("pump", ["binary_sensor", "switch", "input_boolean"]), ent("flue", "sensor"), { name: "burner", selector: { entity: {} } },
           ent("fan", ["sensor", "fan", "number", "input_number"]), ent("battery_soc", "sensor"), ent("battery_power", "sensor"),
         ],
