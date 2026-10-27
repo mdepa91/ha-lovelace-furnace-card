@@ -2,20 +2,20 @@
 // the hot side of the valve, the underfloor heating in the house and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.6.0";
+const CARD_VERSION = "1.7.0";
 
 const I18N = {
   pl: {
     title: "Kotłownia", outdoor: "Zewnętrzna", boiler_supply: "zasilanie kotła", boiler_return: "powrót kotła",
     supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka", ev: "Ładowanie auta", done: "zakończone {m} min temu",
-    boiler: "Kocioł CO", burning: "pali się", out: "wygaszony",
+    boiler: "Kocioł CO", burning: "pali się", out: "wygaszony", alarm: "Alarm kotła",
     thermostat: "termostat", hotwater: "CWU", hw_valve_1: "zawór", hw_valve_2: "CWU", heater: "grzałka", pv1: "Falownik 1", pv2: "Falownik 2", pv_total: "razem", grid: "Sieć",
     no_flow: "brak przepływu",
   },
   en: {
     title: "Boiler room", outdoor: "Outdoor", boiler_supply: "boiler supply", boiler_return: "boiler return",
     supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer", ev: "EV charging", done: "finished {m} min ago",
-    boiler: "Boiler", burning: "burning", out: "out",
+    boiler: "Boiler", burning: "burning", out: "out", alarm: "Boiler alarm",
     thermostat: "thermostat", hotwater: "DHW", hw_valve_1: "DHW", hw_valve_2: "valve", heater: "heater", pv1: "Inverter 1", pv2: "Inverter 2", pv_total: "total", grid: "Grid",
     no_flow: "no flow",
   },
@@ -35,6 +35,7 @@ const EDITOR_I18N = {
     burning_hysteresis: "Histereza palenia (°C)", min_temp: "Kolor: minimum (°C)", max_temp: "Kolor: maksimum (°C)",
     valve_step: "Krok zaworu 4D (%)", pump: "Pompa CO (puste: z temperatury zasilania kotła)", flue: "Temperatura spalin",
     burner: "Stan kotła (puste: z temperatury zasilania kotła)", burner_states: "Stany kotła oznaczające palenie",
+    alarm: "Alarm kotła (wykrzyknik, gdy włączony)",
     fan: "Wentylator (%)", battery_soc: "Magazyn energii – naładowanie %", battery_power: "Magazyn energii – moc (+ ładowanie)",
     battery_invert: "Odwróć kierunek magazynu", appliances: "Odbiorniki w domu", washer: "Pralka", dryer: "Suszarka",
     ev_power: "Ładowanie auta – moc", consumption: "Zużycie domu – moc (puste: PV + sieć − ładowanie magazynu)",
@@ -56,6 +57,7 @@ const EDITOR_I18N = {
     min_temp: "Colour: minimum (°C)", max_temp: "Colour: maximum (°C)", valve_step: "4-way valve step (%)",
     pump: "Heating pump (empty: from the boiler supply temperature)", flue: "Flue gas temperature",
     burner: "Boiler state (empty: from the boiler supply temperature)", burner_states: "Boiler states that mean burning",
+    alarm: "Boiler alarm (exclamation mark while on)",
     fan: "Fan (%)", battery_soc: "Battery – charge %", battery_power: "Battery – power (+ charging)",
     battery_invert: "Invert battery direction", appliances: "Home appliances", washer: "Washer", dryer: "Dryer",
     ev_power: "EV charging – power", consumption: "House consumption – power (empty: PV + grid − battery charging)",
@@ -65,7 +67,7 @@ const EDITOR_I18N = {
 };
 
 const ENTITY_KEYS = ["grid", "weather", "pv1", "pv2", "boiler_supply", "boiler_return", "supply", "return", "hotwater", "hotwater_valve", "heater",
-  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power", "consumption"];
+  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "alarm", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power", "consumption"];
 
 const DEFAULTS = {
   pump_on: 40, pump_hysteresis: 2, burning_on: 45, burning_hysteresis: 2, min_temp: 20, max_temp: 80, valve_step: 5,
@@ -300,7 +302,7 @@ function buildSvg(L) {
     <g id="grp-flue" class="click" data-entity="flue"><title data-i18n="flue"></title>
       <text id="val-flue" x="128" y="293" class="val flue"></text>
     </g>
-    <rect x="6" y="330" width="108" height="180" rx="6" class="box steel" stroke-width="2"/>
+    <rect id="boiler-box" x="6" y="330" width="108" height="180" rx="6" class="box steel" stroke-width="2"/>
     <rect x="14" y="340" width="92" height="42" rx="4" class="outline panel"/>
     <text x="60" y="358" text-anchor="middle" class="title" data-i18n="boiler"></text>
     <text id="st-burner" x="60" y="375" text-anchor="middle" class="lbl"></text>
@@ -309,6 +311,14 @@ function buildSvg(L) {
       <g id="flame" class="flame">
         <path d="M190,392 c-28,0 -38,-22 -28,-44 c6,12 12,14 14,6 c-4,-18 6,-34 18,-44 c-2,16 10,22 16,34 c4,-6 4,-12 2,-18 c14,14 18,34 8,50 c-6,10 -16,16 -30,16 z" fill="#f97316"/>
         <path d="M190,392 c-14,0 -20,-12 -14,-24 c4,6 8,6 8,0 c0,-10 6,-16 12,-22 c0,10 8,14 10,24 c4,12 -4,22 -16,22 z" fill="#fde047"/>
+      </g>
+    </g>
+    <!-- boiler alarm: red warning triangle in the top right corner of the fire box, the boiler frame turns red -->
+    <g id="grp-alarm" class="click hidden" data-entity="alarm"><title data-i18n="alarm"></title>
+      <g class="alarm-blink">
+        <path d="M91,394 L104,416 H78 Z" fill="#d93025" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M91,401 V409" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="91" cy="413" r="1.5" fill="#fff"/>
       </g>
     </g>
     <rect x="14" y="476" width="92" height="26" rx="4" class="outline panel"/>
@@ -552,7 +562,12 @@ const STYLE = `
   #valve-disc { transform-box: fill-box; transform-origin: center; transition: transform .6s ease; }
   #valve-hot, #valve-cold { transition: fill .6s ease; }
   .dot { fill: var(--primary-text-color, #202124); }
-  .smoke { fill: var(--secondary-text-color, #5f6368); fill-opacity: .35; }
+  .smoke { fill: var(--secondary-text-color, #5f6368); fill-opacity: .45; }
+  /* boiler out: the smoke stays (the flue gas temperature next to it keeps its place) but is pale, only outlined */
+  .smoke.cold { fill-opacity: .08; stroke: var(--secondary-text-color, #5f6368); stroke-opacity: .45; stroke-width: 1; }
+  #boiler-box.alarm { stroke: #d93025; stroke-width: 3; }
+  .alarm-blink { animation: blink 1.2s ease-in-out infinite alternate; }
+  @keyframes blink { from { opacity: 1; } to { opacity: .35; } }
   .batt-frame { fill: var(--card-background-color, #fff); stroke: var(--secondary-text-color, #5f6368); }
   #fan-icon.spin { animation-timing-function: linear; }
   .appl-door { fill: var(--card-background-color, #fff); stroke: var(--secondary-text-color, #5f6368); transition: fill .4s; }
@@ -592,7 +607,7 @@ const STYLE = `
   @keyframes spin { to { transform: rotate(360deg); } }
   .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .9s ease-in-out infinite alternate; }
   @keyframes flick { from { transform: scale(1, .92); } to { transform: scale(.94, 1.06); } }
-  @media (prefers-reduced-motion: reduce) { .spin, .flame, .appl-mark, .appl-ring, .flow, .grid-flow, .beams path { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .spin, .flame, .appl-mark, .appl-ring, .flow, .grid-flow, .beams path, .alarm-blink { animation: none; } }
 `;
 
 // <ha-form> is lazy-loaded by HA; opening a built-in card editor that uses it makes sure it is defined.
@@ -1011,7 +1026,10 @@ class FurnaceCard extends HTMLElement {
     ["grp-pump", "grp-pump-pill"].forEach((id) => $(id).classList.toggle("click", !!e.pump));
     const burning = this._burning;
     $("flame").style.display = burning ? "" : "none";
-    $("smoke").style.display = burning ? "" : "none";
+    $("smoke").classList.toggle("cold", !burning);
+    const alarm = !!e.alarm && this._isOn("alarm") === true;
+    $("grp-alarm").classList.toggle("hidden", !alarm);
+    $("boiler-box").classList.toggle("alarm", alarm);
     $("grp-flue").classList.toggle("hidden", !e.flue);
     $("val-flue").textContent = this._fmt(this._num("flue"), 0);
     // a text state (e.g. "Rozpalanie", "Wygaszanie") is shown as it is; on/off and the temperature rule as pali się / wygaszony
@@ -1210,6 +1228,7 @@ class FurnaceCardEditor extends HTMLElement {
           ent("valve", ["number", "input_number", "sensor", "cover", "valve"]),
           ent("thermostat", ["climate", "number", "input_number"]), ent("weather", "weather"), ent("grid", "sensor"), ent("consumption", "sensor"), ent("pv1", "sensor"), ent("pv2", "sensor"),
           ent("pump", ["binary_sensor", "switch", "input_boolean"]), ent("flue", "sensor"), { name: "burner", selector: { entity: {} } },
+          ent("alarm", ["binary_sensor", "switch", "input_boolean"]),
           ent("fan", ["sensor", "fan", "number", "input_number"]), ent("battery_soc", "sensor"), ent("battery_power", "sensor"),
         ],
       },

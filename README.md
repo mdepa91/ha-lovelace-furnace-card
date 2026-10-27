@@ -11,7 +11,10 @@ the hot side of the valve, the underfloor heating in the house (with a washer an
 - **Boiler state:** any entity, also a text one (e.g. "Praca", "Wygaszanie"). Its state is shown on the boiler
   panel and the fire burns while it is one of `burner_states`. Without it the fire follows the boiler supply
   temperature (`burning_on` °C with a hysteresis).
-- **Flue gas temperature** (optional) next to the smoke from the boiler.
+- **Flue gas temperature** (optional) next to the smoke from the boiler. The smoke is always drawn: solid grey
+  while burning, pale and outlined while the boiler is out.
+- **Boiler alarm** (optional `binary_sensor`): while it is on, a blinking red warning triangle shows in the fire box
+  and the boiler frame turns red. Click it for the entity details.
 - **Combustion fan** (optional, %) in the ash door: the fan spins faster with a higher value.
 - **Battery storage** (optional) between the pole and the house: charge level with %, the power (▲ charging,
   ▼ discharging) and a cable to the house with dashes running to the battery (charging) or to the house.
@@ -85,6 +88,7 @@ entities:
   pump: binary_sensor.heating_pump                  # optional; without it the pump follows pump_on
   flue: sensor.flue_gas_temperature                 # optional, shown next to the smoke
   burner: sensor.boiler_state                       # optional, any state (text too); fire from burner_states
+  alarm: binary_sensor.boiler_alarm                 # optional, warning triangle while on
   fan: sensor.boiler_fan                            # optional, % (sensor, number or fan with percentage)
   battery_soc: sensor.battery_soc                   # optional, %
   battery_power: sensor.battery_power               # optional, W or kW, + = charging

@@ -27,7 +27,7 @@
     heater: "switch.grzalka_cwu", room: "sensor.salon", outdoor: "sensor.zewnetrzna", valve: "number.zawor_4d",
     thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
     weather: "weather.dom", grid: "sensor.siec_moc", pump: "binary_sensor.pompa_co", flue: "sensor.spaliny",
-    burner: "sensor.piec_stan", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
+    burner: "sensor.piec_stan", alarm: "binary_sensor.piec_alarm", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
     washer: "sensor.pralka_moc", dryer: "sensor.suszarka_stan", ev_power: "sensor.ladowarka_moc",
   };
   function hass(v, language = "pl") {
@@ -42,7 +42,7 @@
         s(ENT.grid, v.grid ?? 1250, { unit_of_measurement: "W" }),
         // the pump entity defaults to the temperature rule, so scenarios only set it to override
         s(ENT.pump, v.pump ?? (v.bs >= 40 ? "on" : "off")), s(ENT.flue, v.flue ?? (v.bs >= 45 ? 165 : 48)),
-        s(ENT.burner, v.burner ?? (v.bs >= 45 ? "Praca" : "Postój")), s(ENT.fan, v.fan ?? (v.bs >= 45 ? 65 : 0), { unit_of_measurement: "%" }),
+        s(ENT.burner, v.burner ?? (v.bs >= 45 ? "Praca" : "Postój")), s(ENT.alarm, v.alarm ?? "off"), s(ENT.fan, v.fan ?? (v.bs >= 45 ? 65 : 0), { unit_of_measurement: "%" }),
         s(ENT.battery_soc, v.soc ?? 85, { unit_of_measurement: "%" }), s(ENT.battery_power, v.batt ?? 1200, { unit_of_measurement: "W" }),
         s(ENT.washer, v.washer ?? 350, { unit_of_measurement: "W" }), [ENT.dryer, { entity_id: ENT.dryer, state: v.dryer ?? "Wyłączona", attributes: {},
           last_changed: new Date(Date.now() - (v.dryerAgo ?? 20) * 60000).toISOString() }],
@@ -65,7 +65,7 @@
   mount("pl-heating", { entities: ENT },
     hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35, pv1: 2450, pv2: 1.12 }));
   mount("pl-idle-dark", { entities: ENT, title: "Piec", pv1_name: "Dach S", pv2_name: "Garaż" },
-    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, wx: "rainy", grid: -3400, burner: "Wygaszanie", soc: 15, batt: -800, washer: 1.5, dryer: "Suszenie", ev: 0 }));
+    hass({ bs: 31, br: 29, sup: 27, ret: 25.5, hw: 41, hwv: "off", heater: "on", room: 20.4, out: 6, valve: 0, wx: "rainy", grid: -3400, burner: "Wygaszanie", alarm: "on", soc: 15, batt: -800, washer: 1.5, dryer: "Suszenie", ev: 0 }));
   // pl-wide: the house consumption from its own sensor instead of PV + grid - battery
   mount("pl-wide", { entities: { ...ENT, consumption: "sensor.dom_zuzycie" } },
     hass({ bs: 62.4, br: 45.6, sup: 48.5, ret: 38.9, hw: 52, hwv: "on", heater: "off", room: 21.2, out: -3, valve: 35, pv1: 2450, pv2: 1.12 }));
@@ -118,7 +118,10 @@
       dryerTitle: root.getElementById("title-dryer").textContent,
       burnerText: root.getElementById("st-burner").textContent, usage: root.getElementById("val-usage").textContent,
       idleBurner: idle.getElementById("st-burner").textContent, idleFlame: idle.getElementById("flame").style.display,
-      minimalHidden: ["grp-valve", "grp-thermostat", "grp-hw-valve", "grp-heater", "grp-outdoor", "grp-flue", "grp-fan", "grp-battery", "grp-washer", "grp-dryer", "grp-ev"].map((id) =>
+      // alarm on in pl-idle-dark only; the smoke stays, pale while the boiler is out
+      alarm: [root, idle].map((r) => !r.getElementById("grp-alarm").classList.contains("hidden")),
+      smokeCold: [root, idle].map((r) => r.getElementById("smoke").classList.contains("cold")),
+      minimalHidden: ["grp-valve", "grp-thermostat", "grp-hw-valve", "grp-heater", "grp-outdoor", "grp-flue", "grp-alarm", "grp-fan", "grp-battery", "grp-washer", "grp-dryer", "grp-ev"].map((id) =>
         document.querySelector("#en-minimal furnace-card").shadowRoot.getElementById(id).classList.contains("hidden")) };
     // the idle washer (350 W -> 0 W) and the car (3.7 kW -> 0) stop, the idle dryer has been off for 2 h: no mark there
     const idleCard = document.querySelector("#pl-idle-dark furnace-card");
