@@ -10,11 +10,13 @@ the hot side of the valve, the underfloor heating in the house (with a washer an
   boiler supply temperature: it runs from `pump_on` °C with a hysteresis. Shown as an ON/OFF pill above the pump.
 - **Boiler state:** any entity, also a text one (e.g. "Praca", "Wygaszanie"). Its state is shown on the boiler
   panel and the fire burns while it is one of `burner_states`. Without it the fire follows the boiler supply
-  temperature (`burning_on` °C with a hysteresis).
+  temperature (`burning_on` °C with a hysteresis). States in `burner_idle_states` (default "Nadzór",
+  "Podtrzymanie") show glowing embers instead of the flame.
 - **Flue gas temperature** (optional) next to the smoke from the boiler. The smoke is always drawn: solid grey
   while burning, pale and outlined while the boiler is out.
 - **Boiler alarm** (optional `binary_sensor`): while it is on, a blinking red warning triangle shows in the fire box
   and the boiler frame turns red. Click it for the entity details.
+- **Low fuel** (optional `binary_sensor`): an amber gauge pointing at empty in the top left of the fire box.
 - **Combustion fan** (optional, %) in the ash door: the fan spins faster with a higher value.
 - **Battery storage** (optional) between the pole and the house: charge level with %, the power (▲ charging,
   ▼ discharging) and a cable to the house with dashes running to the battery (charging) or to the house.
@@ -48,7 +50,9 @@ the hot side of the valve, the underfloor heating in the house (with a washer an
   changed: a charger behind the meter is already in the grid and PV numbers.
 - **Weather icon** follows the condition of a `weather` entity (sun, moon at night, clouds, rain, snow, storm, fog,
   wind).
-- **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional.
+- **Thermostat setpoint** with − / + under a thermostat icon (`climate` or `number`), optional. In night mode the
+  icon turns into a moon: a `climate` preset from `night_presets` (default sleep, night, noc) or the optional
+  `night` entity. Click the icon for the thermostat dialog (e.g. to change the preset).
 - Pipe temperatures are shown without labels; hover shows the name. Click a value to open the more-info dialog of
   its entity. Elements whose entity is not set are hidden.
 - **Two layouts:** portrait (narrow cards, phones) and landscape (wide cards: the boiler sits next to the valve and
@@ -89,6 +93,8 @@ entities:
   flue: sensor.flue_gas_temperature                 # optional, shown next to the smoke
   burner: sensor.boiler_state                       # optional, any state (text too); fire from burner_states
   alarm: binary_sensor.boiler_alarm                 # optional, warning triangle while on
+  fuel_low: binary_sensor.boiler_low_fuel           # optional, fuel gauge while on
+  night: input_boolean.night_mode                   # optional; without it from the climate preset
   fan: sensor.boiler_fan                            # optional, % (sensor, number or fan with percentage)
   battery_soc: sensor.battery_soc                   # optional, %
   battery_power: sensor.battery_power               # optional, W or kW, + = charging
@@ -97,6 +103,8 @@ entities:
   ev_power: sensor.ev_charger_power                 # optional, W or kW
 burner_states: [Praca, Rozpalanie]  # boiler states meaning "burning", case-insensitive
                                     # (default: on, praca, pali się, burning, heating, work, running)
+burner_idle_states: [Nadzór]        # boiler states meaning embers only (default: nadzór, podtrzymanie, supervision)
+night_presets: [sleep]              # climate presets meaning night (default: sleep, night, noc)
 appliance_states: [Pranie, Suszenie]  # text states meaning "running", case-insensitive (default: on, run,
                                       # running, washing, drying, spin, pranie, płukanie, wirowanie, suszenie, praca, ...)
 appliance_power_on: 5    # W above which a power sensor counts as running (default 5)

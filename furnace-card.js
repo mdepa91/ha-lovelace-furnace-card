@@ -2,20 +2,20 @@
 // the hot side of the valve, the underfloor heating in the house and the hot water tank (CWU) with its zone valve and electric heater.
 // Pipes are coloured by temperature. The pump and the fire have no entities: they follow the boiler supply temperature
 // with thresholds from the config.
-const CARD_VERSION = "1.7.0";
+const CARD_VERSION = "1.8.0";
 
 const I18N = {
   pl: {
     title: "Kotłownia", outdoor: "Zewnętrzna", boiler_supply: "zasilanie kotła", boiler_return: "powrót kotła",
     supply: "zasilanie CO", return: "powrót CO", valve: "zawór 4D", pump: "Pompa CO", flue: "spaliny", fan: "wentylator", battery: "magazyn energii", washer: "Pralka", dryer: "Suszarka", ev: "Ładowanie auta", done: "zakończone {m} min temu",
-    boiler: "Kocioł CO", burning: "pali się", out: "wygaszony", alarm: "Alarm kotła",
+    boiler: "Kocioł CO", burning: "pali się", out: "wygaszony", alarm: "Alarm kotła", fuel_low: "Mało paliwa", night: "Tryb nocny",
     thermostat: "termostat", hotwater: "CWU", hw_valve_1: "zawór", hw_valve_2: "CWU", heater: "grzałka", pv1: "Falownik 1", pv2: "Falownik 2", pv_total: "razem", grid: "Sieć",
     no_flow: "brak przepływu",
   },
   en: {
     title: "Boiler room", outdoor: "Outdoor", boiler_supply: "boiler supply", boiler_return: "boiler return",
     supply: "heating supply", return: "heating return", valve: "4-way valve", pump: "Heating pump", flue: "flue gas", fan: "fan", battery: "battery", washer: "Washer", dryer: "Dryer", ev: "EV charging", done: "finished {m} min ago",
-    boiler: "Boiler", burning: "burning", out: "out", alarm: "Boiler alarm",
+    boiler: "Boiler", burning: "burning", out: "out", alarm: "Boiler alarm", fuel_low: "Low fuel", night: "Night mode",
     thermostat: "thermostat", hotwater: "DHW", hw_valve_1: "DHW", hw_valve_2: "valve", heater: "heater", pv1: "Inverter 1", pv2: "Inverter 2", pv_total: "total", grid: "Grid",
     no_flow: "no flow",
   },
@@ -35,7 +35,9 @@ const EDITOR_I18N = {
     burning_hysteresis: "Histereza palenia (°C)", min_temp: "Kolor: minimum (°C)", max_temp: "Kolor: maksimum (°C)",
     valve_step: "Krok zaworu 4D (%)", pump: "Pompa CO (puste: z temperatury zasilania kotła)", flue: "Temperatura spalin",
     burner: "Stan kotła (puste: z temperatury zasilania kotła)", burner_states: "Stany kotła oznaczające palenie",
-    alarm: "Alarm kotła (wykrzyknik, gdy włączony)",
+    alarm: "Alarm kotła (wykrzyknik, gdy włączony)", fuel_low: "Mało paliwa (wskaźnik w palenisku)",
+    night: "Tryb nocny (puste: z presetu termostatu)", night_presets: "Presety termostatu oznaczające noc",
+    burner_idle_states: "Stany kotła oznaczające żar (nadzór)",
     fan: "Wentylator (%)", battery_soc: "Magazyn energii – naładowanie %", battery_power: "Magazyn energii – moc (+ ładowanie)",
     battery_invert: "Odwróć kierunek magazynu", appliances: "Odbiorniki w domu", washer: "Pralka", dryer: "Suszarka",
     ev_power: "Ładowanie auta – moc", consumption: "Zużycie domu – moc (puste: PV + sieć − ładowanie magazynu)",
@@ -57,7 +59,9 @@ const EDITOR_I18N = {
     min_temp: "Colour: minimum (°C)", max_temp: "Colour: maximum (°C)", valve_step: "4-way valve step (%)",
     pump: "Heating pump (empty: from the boiler supply temperature)", flue: "Flue gas temperature",
     burner: "Boiler state (empty: from the boiler supply temperature)", burner_states: "Boiler states that mean burning",
-    alarm: "Boiler alarm (exclamation mark while on)",
+    alarm: "Boiler alarm (exclamation mark while on)", fuel_low: "Low fuel (gauge in the fire box)",
+    night: "Night mode (empty: from the thermostat preset)", night_presets: "Thermostat presets that mean night",
+    burner_idle_states: "Boiler states that mean embers (supervision)",
     fan: "Fan (%)", battery_soc: "Battery – charge %", battery_power: "Battery – power (+ charging)",
     battery_invert: "Invert battery direction", appliances: "Home appliances", washer: "Washer", dryer: "Dryer",
     ev_power: "EV charging – power", consumption: "House consumption – power (empty: PV + grid − battery charging)",
@@ -67,7 +71,7 @@ const EDITOR_I18N = {
 };
 
 const ENTITY_KEYS = ["grid", "weather", "pv1", "pv2", "boiler_supply", "boiler_return", "supply", "return", "hotwater", "hotwater_valve", "heater",
-  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "alarm", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power", "consumption"];
+  "room", "outdoor", "valve", "thermostat", "pump", "flue", "burner", "alarm", "fuel_low", "night", "fan", "battery_soc", "battery_power", "washer", "dryer", "ev_power", "consumption"];
 
 const DEFAULTS = {
   pump_on: 40, pump_hysteresis: 2, burning_on: 45, burning_hysteresis: 2, min_temp: 20, max_temp: 80, valve_step: 5,
@@ -192,6 +196,12 @@ const MDI_FAN = "M12,11A1,1 0 0,0 11,12A1,1 0 0,0 12,13A1,1 0 0,0 13,12A1,1 0 0,
 const APPLIANCE_STATES = ["on", "true", "run", "running", "wash", "washing", "rinse", "rinsing", "spin", "spinning", "dry",
   "drying", "pranie", "płukanie", "wirowanie", "suszenie", "praca", "w toku"];
 const BURNER_STATES = ["on", "true", "praca", "pali się", "burning", "heating", "work", "running"];
+// boiler states that mean only embers (no flame) when burner_idle_states is not set
+const IDLE_STATES = ["nadzór", "podtrzymanie", "supervision"];
+// climate preset_mode values that mean night when night_presets is not set
+const NIGHT_PRESETS = ["sleep", "night", "noc"];
+// crescent moon, 24×24 like the MDI icons
+const MOON = "M14.5,2.5 A9.5,9.5 0 1 0 21.5,15.5 A7.5,7.5 0 0 1 14.5,2.5 Z";
 
 // Coil inside the horizontal tank: vertical loops over the whole length, in on the left, out on the right.
 const COIL = (() => {
@@ -312,6 +322,20 @@ function buildSvg(L) {
         <path d="M190,392 c-28,0 -38,-22 -28,-44 c6,12 12,14 14,6 c-4,-18 6,-34 18,-44 c-2,16 10,22 16,34 c4,-6 4,-12 2,-18 c14,14 18,34 8,50 c-6,10 -16,16 -30,16 z" fill="#f97316"/>
         <path d="M190,392 c-14,0 -20,-12 -14,-24 c4,6 8,6 8,0 c0,-10 6,-16 12,-22 c0,10 8,14 10,24 c4,12 -4,22 -16,22 z" fill="#fde047"/>
       </g>
+    </g>
+    <!-- embers instead of the flame while the boiler only smoulders (e.g. "Nadzór") -->
+    <g id="embers" class="embers">
+      <ellipse cx="60" cy="462" rx="30" ry="5" fill="#451a03"/>
+      <ellipse cx="44" cy="459" rx="8" ry="4" fill="#c2410c"/><ellipse cx="60" cy="457" rx="9" ry="4.5" fill="#ea580c"/>
+      <ellipse cx="76" cy="459" rx="8" ry="4" fill="#c2410c"/><ellipse cx="52" cy="455" rx="5" ry="2.5" fill="#f59e0b"/>
+      <ellipse cx="69" cy="455" rx="5" ry="2.5" fill="#fbbf24"/>
+    </g>
+    <!-- low fuel: amber gauge pointing at empty in the top left corner of the fire box -->
+    <g id="grp-fuel" class="click hidden" data-entity="fuel_low"><title data-i18n="fuel_low"></title>
+      <path d="M20,412 A10,10 0 0 1 40,412" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+      <path d="M20,412 A10,10 0 0 1 22.9,404.9" fill="none" stroke="#d93025" stroke-width="3" stroke-linecap="round"/>
+      <path d="M30,412 L22.5,406" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="30" cy="412" r="2.2" fill="#fff"/>
     </g>
     <!-- boiler alarm: red warning triangle in the top right corner of the fire box, the boiler frame turns red -->
     <g id="grp-alarm" class="click hidden" data-entity="alarm"><title data-i18n="alarm"></title>
@@ -468,7 +492,9 @@ function buildSvg(L) {
     </g>
   </g>
   <g id="grp-thermostat" transform="translate(394,256)">
-    <path d="${MDI_THERMOSTAT}" transform="translate(-10,-31) scale(.85)" class="mdi-icon"><title data-i18n="thermostat"></title></path>
+    <g class="click" data-entity="thermostat">
+      <path id="sp-icon" d="${MDI_THERMOSTAT}" transform="translate(-10,-31) scale(.85)" class="mdi-icon"><title id="title-sp-icon"></title></path>
+    </g>
     <g class="btn" id="btn-sp-down" transform="translate(-56,0)">${MINUS}</g>
     <text id="val-setpoint" class="val click" data-entity="thermostat" text-anchor="middle" y="5"></text>
     <g class="btn" id="btn-sp-up" transform="translate(56,0)">${PLUS}</g>
@@ -564,6 +590,9 @@ const STYLE = `
   .dot { fill: var(--primary-text-color, #202124); }
   .smoke { fill: var(--secondary-text-color, #5f6368); fill-opacity: .45; }
   /* boiler out: the smoke stays (the flue gas temperature next to it keeps its place) but is pale, only outlined */
+  .embers { animation: glow 2.4s ease-in-out infinite alternate; }
+  @keyframes glow { from { opacity: .65; } to { opacity: 1; } }
+  #sp-icon.night { fill: #7c8cf0; }
   .smoke.cold { fill-opacity: .08; stroke: var(--secondary-text-color, #5f6368); stroke-opacity: .45; stroke-width: 1; }
   #boiler-box.alarm { stroke: #d93025; stroke-width: 3; }
   .alarm-blink { animation: blink 1.2s ease-in-out infinite alternate; }
@@ -607,7 +636,7 @@ const STYLE = `
   @keyframes spin { to { transform: rotate(360deg); } }
   .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .9s ease-in-out infinite alternate; }
   @keyframes flick { from { transform: scale(1, .92); } to { transform: scale(.94, 1.06); } }
-  @media (prefers-reduced-motion: reduce) { .spin, .flame, .appl-mark, .appl-ring, .flow, .grid-flow, .beams path, .alarm-blink { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .spin, .flame, .appl-mark, .appl-ring, .flow, .grid-flow, .beams path, .alarm-blink, .embers { animation: none; } }
 `;
 
 // <ha-form> is lazy-loaded by HA; opening a built-in card editor that uses it makes sure it is defined.
@@ -644,8 +673,9 @@ class FurnaceCard extends HTMLElement {
       throw new Error("layout: must be auto, portrait or landscape");
     for (const k of ["grid_invert", "battery_invert"])
       if (config[k] !== undefined && typeof config[k] !== "boolean") throw new Error(`${k}: must be true or false`);
-    if (config.burner_states !== undefined && !(Array.isArray(config.burner_states) || typeof config.burner_states === "string"))
-      throw new Error("burner_states: must be a list of states");
+    for (const k of ["burner_states", "burner_idle_states", "night_presets"])
+      if (config[k] !== undefined && !(Array.isArray(config[k]) || typeof config[k] === "string"))
+        throw new Error(`${k}: must be a list of states`);
     for (const k of ["pv1_name", "pv2_name"])
       if (config[k] !== undefined && typeof config[k] !== "string") throw new Error(`${k}: must be text`);
     for (const k of Object.keys(DEFAULTS))
@@ -869,6 +899,9 @@ class FurnaceCard extends HTMLElement {
       const states = [].concat(c.burner_states ?? BURNER_STATES).map((x) => String(x).trim().toLowerCase());
       this._burning = !!burnerSt && states.includes(String(burnerSt.state).trim().toLowerCase());
     } else this._burning = this._threshold(this._burning, bs, c.burning_on, c.burning_hysteresis);
+    const lower = (list) => [].concat(list).map((x) => String(x).trim().toLowerCase());
+    const smouldering = !this._burning && !!e.burner && !!burnerSt &&
+      lower(c.burner_idle_states ?? IDLE_STATES).includes(String(burnerSt.state).trim().toLowerCase());
     const pump = this._pumpOn;
     const hwOpen = e.hotwater_valve ? this._isOn("hotwater_valve") === true : true;
     const hwFlow = pump && hwOpen;
@@ -1027,6 +1060,8 @@ class FurnaceCard extends HTMLElement {
     const burning = this._burning;
     $("flame").style.display = burning ? "" : "none";
     $("smoke").classList.toggle("cold", !burning);
+    $("embers").style.display = smouldering ? "" : "none";
+    $("grp-fuel").classList.toggle("hidden", !(e.fuel_low && this._isOn("fuel_low") === true));
     const alarm = !!e.alarm && this._isOn("alarm") === true;
     $("grp-alarm").classList.toggle("hidden", !alarm);
     $("boiler-box").classList.toggle("alarm", alarm);
@@ -1076,6 +1111,14 @@ class FurnaceCard extends HTMLElement {
     const sp = this._pendingSp ?? this._setpoint();
     $("grp-thermostat").classList.toggle("hidden", !e.thermostat);
     $("val-setpoint").textContent = this._fmt(sp);
+    // night mode: own entity, or a climate preset listed in night_presets; the thermostat icon turns into a moon
+    const tst = this._state("thermostat");
+    const nightMode = e.night ? this._isOn("night") === true
+      : !!tst && this._domain(tst.entity_id) === "climate" &&
+        lower(c.night_presets ?? NIGHT_PRESETS).includes(String(tst.attributes.preset_mode ?? "").trim().toLowerCase());
+    $("sp-icon").setAttribute("d", nightMode ? MOON : MDI_THERMOSTAT);
+    $("sp-icon").classList.toggle("night", nightMode);
+    $("title-sp-icon").textContent = nightMode ? t.night : t.thermostat;
 
     // hot water valve: bore along the pipe = open, across = closed
     $("grp-hw-valve").classList.toggle("hidden", !e.hotwater_valve);
@@ -1228,7 +1271,8 @@ class FurnaceCardEditor extends HTMLElement {
           ent("valve", ["number", "input_number", "sensor", "cover", "valve"]),
           ent("thermostat", ["climate", "number", "input_number"]), ent("weather", "weather"), ent("grid", "sensor"), ent("consumption", "sensor"), ent("pv1", "sensor"), ent("pv2", "sensor"),
           ent("pump", ["binary_sensor", "switch", "input_boolean"]), ent("flue", "sensor"), { name: "burner", selector: { entity: {} } },
-          ent("alarm", ["binary_sensor", "switch", "input_boolean"]),
+          ent("alarm", ["binary_sensor", "switch", "input_boolean"]), ent("fuel_low", ["binary_sensor", "input_boolean"]),
+          ent("night", ["binary_sensor", "switch", "input_boolean"]),
           ent("fan", ["sensor", "fan", "number", "input_number"]), ent("battery_soc", "sensor"), ent("battery_power", "sensor"),
         ],
       },
@@ -1248,6 +1292,8 @@ class FurnaceCardEditor extends HTMLElement {
           num("pump_on", 0, 100, 0.5), num("pump_hysteresis", 0, 20, 0.5),
           num("burning_on", 0, 100, 0.5), num("burning_hysteresis", 0, 20, 0.5),
           { name: "burner_states", selector: { text: { multiple: true } } },
+          { name: "burner_idle_states", selector: { text: { multiple: true } } },
+          { name: "night_presets", selector: { text: { multiple: true } } },
         ],
       },
       {

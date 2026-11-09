@@ -47,7 +47,7 @@
     <label>Spaliny <input type="range" min="20" max="300" step="1" data-k="flue"><output></output></label>
     <label>Pompa CO <select id="pump"><option value="">z temperatury</option><option value="on">encja: ON</option><option value="off">encja: OFF</option></select></label>
     <label>Wentylator % <input type="range" min="0" max="100" step="1" data-k="fan"><output></output></label>
-    <label>Stan kotła <select data-k="burner"><option>Praca</option><option>Rozpalanie</option><option>Wygaszanie</option><option>Postój</option></select></label>
+    <label>Stan kotła <select data-k="burner"><option>Praca</option><option>Rozpalanie</option><option>Wygaszanie</option><option>Nadzór</option><option>Postój</option></select></label>
     <label>Magazyn % <input type="range" min="0" max="100" step="1" data-k="soc"><output></output></label>
     <label>Magazyn kW (+ ład.) <input type="range" min="-5" max="5" step="0.05" data-k="batt"><output></output></label>
     <label>Pralka W <input type="range" min="0" max="2200" step="10" data-k="washer"><output></output></label>
@@ -58,6 +58,8 @@
     <label><input type="checkbox" data-k="hotwater_valve"> Zawór CWU otwarty</label>
     <label><input type="checkbox" data-k="heater"> Grzałka CWU</label>
     <label><input type="checkbox" data-k="alarm"> Alarm kotła</label>
+    <label><input type="checkbox" data-k="fuel_low"> Mało paliwa</label>
+    <label><input type="checkbox" data-k="night"> Tryb nocny (preset sleep)</label>
     <label><input type="checkbox" id="dark"> Ciemny motyw</label>
     <label><input type="checkbox" id="wide"> Szeroka karta (układ poziomy)</label>
   </div>
@@ -72,13 +74,13 @@ const ENT = {
   heater: "binary_sensor.grzalka_cwu", room: "sensor.dom", outdoor: "sensor.zewnetrzna", valve: "number.zawor_4d",
   thermostat: "climate.dom", pv1: "sensor.falownik_1_moc", pv2: "sensor.falownik_2_moc",
   weather: "weather.dom", grid: "sensor.siec_moc", flue: "sensor.spaliny",
-  burner: "sensor.piec_stan", alarm: "binary_sensor.piec_alarm", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
+  burner: "sensor.piec_stan", alarm: "binary_sensor.piec_alarm", fuel_low: "binary_sensor.piec_malo_paliwa", fan: "sensor.piec_wentylator", battery_soc: "sensor.magazyn_soc", battery_power: "sensor.magazyn_moc",
   washer: "sensor.pralka_moc", dryer: "sensor.suszarka_stan", ev_power: "sensor.ladowarka_moc",
 };
 const PUMP = "binary_sensor.pompa_co";
 const S = { boiler_supply: 62.4, boiler_return: 45.6, supply: 48.5, return: 38.9, hotwater: 52, room: 21.2,
   outdoor: -3, valve: 35, hotwater_valve: true, heater: false, setpoint: 21.5, pv1: 2.4, pv2: 1.1, weather: "partlycloudy", grid: 1.2,
-  flue: 165, alarm: false, pump: "", fan: 65, burner: "Praca", soc: 85, batt: 1.2, washer: 350, dryer: "Wyłączona", ev: 7.2 };
+  flue: 165, alarm: false, fuel_low: false, night: false, pump: "", fan: 65, burner: "Praca", soc: 85, batt: 1.2, washer: 350, dryer: "Wyłączona", ev: 7.2 };
 
 const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.style.opacity = 1;
   clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1800); };
@@ -95,12 +97,12 @@ function hass() {
       st(ENT.valve, S.valve, { min: 0, max: 100, step: 1 }),
       st(ENT.pv1, S.pv1, { unit_of_measurement: "kW" }), st(ENT.pv2, S.pv2, { unit_of_measurement: "kW" }),
       st(ENT.grid, S.grid, { unit_of_measurement: "kW" }), st(ENT.flue, S.flue), st(PUMP, S.pump || "off"),
-      st(ENT.fan, S.fan, { unit_of_measurement: "%" }), st(ENT.burner, S.burner), st(ENT.alarm, onoff(S.alarm)),
+      st(ENT.fan, S.fan, { unit_of_measurement: "%" }), st(ENT.burner, S.burner), st(ENT.alarm, onoff(S.alarm)), st(ENT.fuel_low, onoff(S.fuel_low)),
       st(ENT.battery_soc, S.soc, { unit_of_measurement: "%" }), st(ENT.battery_power, S.batt, { unit_of_measurement: "kW" }),
       st(ENT.ev_power, S.ev, { unit_of_measurement: "kW" }),
       st(ENT.washer, S.washer, { unit_of_measurement: "W" }), st(ENT.dryer, S.dryer),
       st(ENT.weather, S.weather, { temperature: S.outdoor }),
-      st(ENT.thermostat, "heat", { temperature: S.setpoint, target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
+      st(ENT.thermostat, "heat", { temperature: S.setpoint, preset_mode: S.night ? "sleep" : "home", target_temp_step: 0.5, min_temp: 7, max_temp: 30 }),
     ]),
     callService(domain, service, data) {
       toast(`${domain}.${service} ${JSON.stringify(data)}`);
